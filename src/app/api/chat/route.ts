@@ -52,7 +52,15 @@ export async function POST(req: NextRequest) {
       stream: true,
     };
 
-    if (reasoningEffort && (model.includes("o1") || model.includes("o3") || model.includes("deepseek-r1"))) {
+    if (
+      reasoningEffort &&
+      (model.includes("o1") ||
+        model.includes("o3") ||
+        model.includes("deepseek-r1") ||
+        model.includes("gpt-5.6") ||
+        model.includes("sol") ||
+        model.includes("terra"))
+    ) {
       requestPayload["reasoning_effort"] = reasoningEffort;
     }
 

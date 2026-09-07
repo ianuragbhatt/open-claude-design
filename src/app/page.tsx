@@ -5,6 +5,8 @@ import { ChatPane } from "@/components/ChatPane";
 import { PreviewPane } from "@/components/PreviewPane";
 import { SettingsModal } from "@/components/SettingsModal";
 import { HomeView } from "@/components/HomeView";
+import { DesignSystemView } from "@/components/DesignSystemView";
+import { getDesignSystem } from "@/lib/design-systems";
 import { parseStreamContent } from "@/lib/parser";
 import {
   type Project,
@@ -23,7 +25,8 @@ import {
 } from "@/lib/storage";
 
 export default function OpenClaudeDesignStudio() {
-  const [currentView, setCurrentView] = useState<"home" | "studio">("home");
+  const [currentView, setCurrentView] = useState<"home" | "studio" | "design-system">("home");
+  const [activeDesignSystemId, setActiveDesignSystemId] = useState<string>("modernist");
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [project, setProject] = useState<Project | null>(null);
   const [settings, setSettings] = useState<ApiSettings>(DEFAULT_SETTINGS);
@@ -317,6 +320,28 @@ export default function OpenClaudeDesignStudio() {
     }, 50);
   };
 
+  const handleOpenDesignSystem = (systemId: string) => {
+    setActiveDesignSystemId(systemId);
+    setCurrentView("design-system");
+  };
+
+  const handleUseDesignSystem = (systemId: string, promptText?: string) => {
+    if (promptText) {
+      handleHomeSubmitPrompt(promptText, systemId);
+    } else {
+      const sys = getDesignSystem(systemId);
+      const newProj = createNewProject(`New ${sys.name} Project`, systemId);
+      const updatedList = [newProj, ...allProjects];
+      setAllProjects(updatedList);
+      saveProjects(updatedList);
+      setActiveProjectId(newProj.id);
+      setProject(newProj);
+      setStreamingHtml("");
+      setSelectedElement(null);
+      setCurrentView("studio");
+    }
+  };
+
   if (!project) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-background text-foreground-muted">
@@ -349,6 +374,19 @@ export default function OpenClaudeDesignStudio() {
             setCurrentView("studio");
           }}
           onSubmitPrompt={handleHomeSubmitPrompt}
+          onOpenDesignSystem={handleOpenDesignSystem}
+        />
+      ) : currentView === "design-system" ? (
+        <DesignSystemView
+          initialSystemId={activeDesignSystemId}
+          settings={settings}
+          onUpdateSettings={(newSettings) => {
+            setSettings(newSettings);
+            saveSettings(newSettings);
+          }}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onUseDesignSystem={handleUseDesignSystem}
+          onBack={() => setCurrentView("home")}
         />
       ) : (
         <div className="w-full h-full flex overflow-hidden">
@@ -376,6 +414,7 @@ export default function OpenClaudeDesignStudio() {
               saveSettings(newSettings);
             }}
             onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenDesignSystem={handleOpenDesignSystem}
           />
 
           {/* Right: Live Canvas Preview Pane with Claude Design command ribbon */}

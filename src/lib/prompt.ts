@@ -1,4 +1,4 @@
-import { getDesignSystem, type DesignSystem } from "./design-systems";
+import { getDesignSystem, type RichDesignSystem } from "./design-systems";
 
 export interface PromptContext {
   brandId: string;
@@ -11,10 +11,23 @@ export interface PromptContext {
 }
 
 export function buildSystemPrompt(context: PromptContext): string {
-  const brand: DesignSystem = getDesignSystem(context.brandId);
+  const brand: RichDesignSystem = getDesignSystem(context.brandId);
   const brandGuidance = context.customBrand?.trim() 
     ? `CUSTOM BRAND GUIDELINES:\n${context.customBrand}` 
     : brand.promptGuidance;
+
+  const tokensSpec = brand.tokensCss
+    ? `\n### ACTIVE BRAND DESIGN CONTRACT & CSS TOKENS:
+\`\`\`css
+${brand.tokensCss}
+\`\`\`
+- Display Font: "${brand.foundations?.typography?.displayFont || 'Inter'}"
+- Body Font: "${brand.foundations?.typography?.bodyFont || 'Plus Jakarta Sans'}"
+- Mono Font: "${brand.foundations?.typography?.monoFont || 'JetBrains Mono'}"
+- Primary Accent: ${brand.accentColor}
+- Canvas Mode: ${brand.bgDark ? 'Dark-mode-first' : 'Light canvas'}
+`
+    : "";
 
   return `
 You are Open Claude Design, an elite AI UI/UX designer and software architect. You create production-grade, stunning, and fully responsive user interfaces.
@@ -22,6 +35,7 @@ You are Open Claude Design, an elite AI UI/UX designer and software architect. Y
 You do not write conversational fluff. You deliver single-page, responsive web prototypes, apps, dashboards, and landing pages directly.
 
 ${brandGuidance}
+${tokensSpec}
 
 ### CORE CRAFT RULES:
 1. **Never use AI slop**: Avoid generic, cliché templates. Write real, authentic copy and data (never use "Lorem Ipsum"). Use realistic metrics, company names, and believable micro-copy.

@@ -15,6 +15,7 @@ import {
   Play,
   SquarePen,
   Wand2,
+  ArrowUpRight,
 } from "lucide-react";
 import { QuestionFormView } from "./QuestionFormView";
 import { ModelPickerPopover } from "./ModelPickerPopover";
@@ -42,6 +43,7 @@ interface ChatPaneProps {
   settings: ApiSettings;
   onUpdateSettings: (settings: ApiSettings) => void;
   onOpenSettings: () => void;
+  onOpenDesignSystem?: (brandId: string) => void;
 }
 
 const STARTER_PROMPTS = [
@@ -77,6 +79,7 @@ export function ChatPane({
   settings,
   onUpdateSettings,
   onOpenSettings,
+  onOpenDesignSystem,
 }: ChatPaneProps) {
   const [input, setInput] = useState("");
   const [isModelPickerOpen, setIsModelPickerOpen] = useState(false);
@@ -391,6 +394,24 @@ export function ChatPane({
                         )}
                       </button>
                     ))}
+                  </div>
+
+                  {/* Quick link to Inspect & Edit active design system */}
+                  <div className="pt-1.5 mt-1 border-t border-border">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onOpenDesignSystem?.(brandId);
+                        setIsBrandMenuOpen(false);
+                      }}
+                      className="w-full text-left px-2 py-1.5 rounded-lg text-terracotta hover:bg-terracotta/10 text-xs font-medium flex items-center justify-between transition-colors"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <Palette className="w-3 h-3" />
+                        <span>Inspect & Edit {currentBrand.name}</span>
+                      </div>
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               </>

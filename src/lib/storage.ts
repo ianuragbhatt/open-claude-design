@@ -44,6 +44,9 @@ export const DEFAULT_SETTINGS: ApiSettings = {
   apiKey: "",
   selectedModel: "anthropic/claude-3.7-sonnet",
   availableModels: [
+    "openai.gpt-5.6-terra",
+    "openai.gpt-5.6-sol",
+    "openai.gpt-5.6-luna",
     "anthropic/claude-3.7-sonnet",
     "anthropic/claude-3.7-sonnet:thinking",
     "anthropic/claude-3.5-sonnet",

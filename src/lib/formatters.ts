@@ -54,6 +54,33 @@ export function formatModelName(rawId: string): FormattedModel {
     };
   }
 
+  if (cleanId.includes("gpt-5.6-sol") || cleanId.includes("gpt-5-sol")) {
+    return {
+      displayName: "GPT-5.6 Sol",
+      provider: "OpenAI",
+      badge: "Flagship Reasoning",
+      isThinking: true,
+    };
+  }
+
+  if (cleanId.includes("gpt-5.6-terra") || cleanId.includes("gpt-5-terra")) {
+    return {
+      displayName: "GPT-5.6 Terra",
+      provider: "OpenAI",
+      badge: "Balanced Craft",
+      isThinking: false,
+    };
+  }
+
+  if (cleanId.includes("gpt-5.6-luna") || cleanId.includes("gpt-5-luna")) {
+    return {
+      displayName: "GPT-5.6 Luna",
+      provider: "OpenAI",
+      badge: "Fast Draft",
+      isThinking: false,
+    };
+  }
+
   if (cleanId.includes("gpt-4o-mini")) {
     return {
       displayName: "GPT-4o Mini",
@@ -191,4 +218,53 @@ DESIGN SYSTEM: ${inputs.name.toUpperCase()}
   - Responsive layout that scales gracefully from mobile (375px) to desktop (1440px).
   ${inputs.notes ? `- Designer Notes: ${inputs.notes}` : ""}
 `.trim();
+}
+
+export function calculateLuminance(hex: string): number {
+  let clean = hex.replace("#", "").trim();
+  if (clean.length === 3) {
+    clean = clean.split("").map((c) => c + c).join("");
+  }
+  if (clean.length !== 6) return 0.5;
+
+  const r = parseInt(clean.substring(0, 2), 16) / 255;
+  const g = parseInt(clean.substring(2, 4), 16) / 255;
+  const b = parseInt(clean.substring(4, 6), 16) / 255;
+
+  const toLinear = (c: number) =>
+    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+
+  return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+}
+
+export function calculateContrastRatio(hex1: string, hex2: string): number {
+  try {
+    const l1 = calculateLuminance(hex1);
+    const l2 = calculateLuminance(hex2);
+    const lighter = Math.max(l1, l2);
+    const darker = Math.min(l1, l2);
+    const ratio = (lighter + 0.05) / (darker + 0.05);
+    return Math.round(ratio * 10) / 10;
+  } catch {
+    return 1;
+  }
+}
+
+export interface WcagEvaluation {
+  ratio: number;
+  ratioStr: string;
+  normalText: "AAA" | "AA" | "Fail";
+  largeText: "AAA" | "AA" | "Fail";
+}
+
+export function getWcagRating(hex1: string, hex2: string): WcagEvaluation {
+  const ratio = calculateContrastRatio(hex1, hex2);
+  const ratioStr = `${ratio.toFixed(1)}:1`;
+
+  const normalText: "AAA" | "AA" | "Fail" =
+    ratio >= 7.0 ? "AAA" : ratio >= 4.5 ? "AA" : "Fail";
+  const largeText: "AAA" | "AA" | "Fail" =
+    ratio >= 4.5 ? "AAA" : ratio >= 3.0 ? "AA" : "Fail";
+
+  return { ratio, ratioStr, normalText, largeText };
 }

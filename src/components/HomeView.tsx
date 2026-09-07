@@ -19,12 +19,19 @@ import {
   Sun,
   Moon,
   Compass,
+  Palette,
+  ArrowUpRight,
+  Copy,
+  Download,
 } from "lucide-react";
 import { ModelPickerPopover } from "@/components/ModelPickerPopover";
 import { CreateDesignSystemModal } from "@/components/CreateDesignSystemModal";
 import {
   getAllDesignSystems,
+  getDesignSystem,
   deleteCustomDesignSystem,
+  duplicateDesignSystem,
+  exportDesignSystemMarkdown,
   type DesignSystem,
 } from "@/lib/design-systems";
 import type { ApiSettings, Project } from "@/lib/storage";
@@ -42,6 +49,7 @@ interface HomeViewProps {
   onDeleteProject: (projectId: string) => void;
   onNewProject: () => void;
   onSubmitPrompt: (prompt: string, brandId: string) => void;
+  onOpenDesignSystem?: (systemId: string) => void;
 }
 
 const INSPIRATION_IDEAS = [
@@ -67,6 +75,17 @@ const INSPIRATION_IDEAS = [
   },
 ];
 
+const SYSTEM_CATEGORIES = [
+  { id: "all", label: "All Styles" },
+  { id: "ai", label: "AI & LLM" },
+  { id: "saas", label: "Productivity & SaaS" },
+  { id: "developer", label: "Developer Tools" },
+  { id: "creative", label: "Design & Creative" },
+  { id: "editorial", label: "Editorial & Print" },
+  { id: "fintech", label: "Fintech & Crypto" },
+  { id: "custom", label: "Custom Styles" },
+];
+
 export function HomeView({
   projects,
   activeProject,
@@ -79,9 +98,11 @@ export function HomeView({
   onDeleteProject,
   onNewProject,
   onSubmitPrompt,
+  onOpenDesignSystem,
 }: HomeViewProps) {
   const [activeTab, setActiveTab] = useState<"projects" | "design-systems">("design-systems");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
 
   // Hero composer state
@@ -134,6 +155,36 @@ export function HomeView({
     refreshSystems();
   }, []);
 
+  const handleDuplicateSystem = (e: React.MouseEvent, systemId: string) => {
+    e.stopPropagation();
+    try {
+      const duplicated = duplicateDesignSystem(systemId);
+      refreshSystems();
+      setSelectedBrandId(duplicated.id);
+    } catch (err) {
+      console.error("Failed to duplicate design system:", err);
+    }
+  };
+
+  const handleDownloadMarkdown = (e: React.MouseEvent, systemId: string) => {
+    e.stopPropagation();
+    try {
+      const full = getDesignSystem(systemId);
+      const md = exportDesignSystemMarkdown(full);
+      const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${systemId}-DESIGN.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to export DESIGN.md:", err);
+    }
+  };
+
   const currentBrand =
     allSystems.find((ds) => ds.id === selectedBrandId) || allSystems[0] || {
       id: "claude-anthropic",
@@ -159,12 +210,27 @@ export function HomeView({
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredSystems = allSystems.filter(
-    (s) =>
-      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.badge.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredSystems = allSystems.filter((s) => {
+    const q = searchQuery.toLowerCase();
+    const matchesSearch =
+      s.name.toLowerCase().includes(q) ||
+      s.description.toLowerCase().includes(q) ||
+      s.badge.toLowerCase().includes(q) ||
+      (s.category && s.category.toLowerCase().includes(q));
+
+    if (!matchesSearch) return false;
+    if (selectedCategory === "all") return true;
+    if (selectedCategory === "custom") return !!s.isCustom;
+
+    const catOrBadge = `${s.category || ""} ${s.badge || ""}`.toLowerCase();
+    if (selectedCategory === "ai") return catOrBadge.includes("ai") || catOrBadge.includes("llm");
+    if (selectedCategory === "saas") return catOrBadge.includes("saas") || catOrBadge.includes("productivity");
+    if (selectedCategory === "developer") return catOrBadge.includes("developer") || catOrBadge.includes("terminal") || catOrBadge.includes("cli") || catOrBadge.includes("database");
+    if (selectedCategory === "creative") return catOrBadge.includes("creative") || catOrBadge.includes("design") || catOrBadge.includes("playful") || catOrBadge.includes("luxury") || catOrBadge.includes("swiss");
+    if (selectedCategory === "editorial") return catOrBadge.includes("editorial") || catOrBadge.includes("print") || catOrBadge.includes("publication");
+    if (selectedCategory === "fintech") return catOrBadge.includes("fintech") || catOrBadge.includes("crypto");
+    return true;
+  });
 
   const formatRelativeTime = (timestamp?: number | string) => {
     if (!timestamp || typeof timestamp === "string") return timestamp || "—";
@@ -488,7 +554,41 @@ export function HomeView({
           {/* TAB CONTENT: DESIGN SYSTEMS */}
           {activeTab === "design-systems" && (
             <div className="mt-4">
-              {viewMode === "table" ? (
+              {/* Category Filter Pills Bar */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-3 mb-2 scrollbar-none">
+                {SYSTEM_CATEGORIES.map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all shrink-0 ${
+                      selectedCategory === cat.id
+                        ? "bg-foreground text-background shadow-xs font-semibold"
+                        : "bg-surface-subtle text-foreground-muted hover:text-foreground hover:bg-surface border border-border/60"
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+
+              {filteredSystems.length === 0 ? (
+                <div className="p-12 text-center border border-dashed border-border rounded-xl">
+                  <Palette className="w-8 h-8 text-foreground-muted mx-auto mb-2 opacity-40" />
+                  <p className="text-xs text-foreground font-medium">No brand styles found</p>
+                  <p className="text-[11px] text-foreground-muted mt-0.5">
+                    Try clearing your search query or selecting a different category filter.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setSearchQuery("");
+                      setSelectedCategory("all");
+                    }}
+                    className="mt-3 px-3 py-1 text-xs text-terracotta font-medium hover:underline"
+                  >
+                    Reset filters
+                  </button>
+                </div>
+              ) : viewMode === "table" ? (
                 <div className="w-full overflow-x-auto">
                   <table className="w-full text-left text-xs text-foreground">
                     <thead>
@@ -506,7 +606,10 @@ export function HomeView({
                         return (
                           <tr
                             key={system.id}
-                            onClick={() => setSelectedBrandId(system.id)}
+                            onClick={() => {
+                              setSelectedBrandId(system.id);
+                              onOpenDesignSystem?.(system.id);
+                            }}
                             className={`group cursor-pointer hover:bg-surface-subtle transition-colors ${
                               isSelected ? "bg-terracotta/10" : ""
                             }`}
@@ -540,6 +643,11 @@ export function HomeView({
                                     <span className="font-medium text-foreground group-hover:text-terracotta transition-colors">
                                       {system.name}
                                     </span>
+                                    {system.isCustom && (
+                                      <span className="text-[9px] font-semibold uppercase px-1.5 py-0.2 rounded bg-terracotta/10 text-terracotta border border-terracotta/20">
+                                        Custom
+                                      </span>
+                                    )}
                                   </div>
                                   <p className="text-[11px] text-foreground-muted truncate max-w-md mt-0.5">
                                     {system.description}
@@ -572,11 +680,37 @@ export function HomeView({
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setSelectedBrandId(system.id);
+                                    onOpenDesignSystem?.(system.id);
+                                  }}
+                                  className="px-2.5 py-1 rounded text-[11px] font-medium border border-border bg-surface hover:bg-surface-subtle text-foreground flex items-center gap-1 transition-colors shadow-2xs"
+                                  title="Inspect & Edit Design System"
+                                >
+                                  <Palette className="w-3 h-3 text-terracotta" />
+                                  <span>Inspect</span>
+                                </button>
+                                <button
+                                  onClick={(e) => handleDuplicateSystem(e, system.id)}
+                                  className="p-1 hover:bg-surface text-foreground-muted hover:text-foreground border border-transparent hover:border-border rounded transition-colors"
+                                  title="Duplicate as new custom style"
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={(e) => handleDownloadMarkdown(e, system.id)}
+                                  className="p-1 hover:bg-surface text-foreground-muted hover:text-foreground border border-transparent hover:border-border rounded transition-colors"
+                                  title="Download DESIGN.md specification"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedBrandId(system.id);
                                     textareaRef.current?.focus();
                                   }}
                                   className={`px-2.5 py-1 rounded text-[11px] border transition-colors ${
                                     isSelected
-                                      ? "bg-terracotta text-white border-transparent shadow-xs"
+                                      ? "bg-terracotta text-white border-transparent shadow-xs font-medium"
                                       : "bg-surface-subtle hover:bg-surface text-foreground border-border"
                                   }`}
                                 >
@@ -611,7 +745,10 @@ export function HomeView({
                     return (
                       <div
                         key={system.id}
-                        onClick={() => setSelectedBrandId(system.id)}
+                        onClick={() => {
+                          setSelectedBrandId(system.id);
+                          onOpenDesignSystem?.(system.id);
+                        }}
                         className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
                           isSelected
                             ? "bg-surface border-terracotta shadow-md shadow-terracotta/10"
@@ -636,11 +773,18 @@ export function HomeView({
                                 />
                               )}
                             </div>
-                            {isSelected && (
-                              <span className="text-[10px] text-terracotta font-medium flex items-center gap-1 bg-terracotta/10 px-2 py-0.5 rounded-full">
-                                <Check className="w-3 h-3" /> Active
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1.5">
+                              {system.isCustom && (
+                                <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded bg-terracotta/10 text-terracotta border border-terracotta/20">
+                                  Custom
+                                </span>
+                              )}
+                              {isSelected && (
+                                <span className="text-[10px] text-terracotta font-medium flex items-center gap-1 bg-terracotta/10 px-2 py-0.5 rounded-full">
+                                  <Check className="w-3 h-3" /> Active
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <h3 className="font-medium text-foreground text-xs">{system.name}</h3>
                           <p className="text-[11px] text-foreground-muted line-clamp-2 mt-1 leading-relaxed">
@@ -649,8 +793,34 @@ export function HomeView({
                         </div>
 
                         <div className="flex items-center justify-between pt-3 mt-3 border-t border-border text-[10px] text-foreground-muted">
-                          <span>{system.badge}</span>
-                          <span>{system.bgDark ? "Dark" : "Light"}</span>
+                          <span className="font-medium truncate max-w-[90px]">{system.badge}</span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={(e) => handleDuplicateSystem(e, system.id)}
+                              className="p-1 hover:bg-surface-subtle rounded text-foreground-muted hover:text-foreground transition-colors"
+                              title="Duplicate as new custom style"
+                            >
+                              <Copy className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={(e) => handleDownloadMarkdown(e, system.id)}
+                              className="p-1 hover:bg-surface-subtle rounded text-foreground-muted hover:text-foreground transition-colors"
+                              title="Download DESIGN.md"
+                            >
+                              <Download className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedBrandId(system.id);
+                                onOpenDesignSystem?.(system.id);
+                              }}
+                              className="text-terracotta font-medium hover:underline flex items-center gap-0.5 ml-1 text-xs"
+                            >
+                              <span>Inspect</span>
+                              <ArrowUpRight className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
