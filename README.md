@@ -116,6 +116,18 @@ open-claude-design/
 └── README.md
 ```
 
+## 🙏 Credits & References
+
+This project is created for the community and is built on the inspiration and concepts of two pioneering projects:
+
+1. **[Claude Design by Anthropic](https://claude.ai)**:
+   - Full credit for the visual design inspiration, editorial typography, UI aesthetic, the iconic *"What should we create?"* hero prompt composer, the model pill popover, and the conversational design-first UX.
+   - *Disclaimer*: Open Claude Design is an independent open-source project and is not affiliated with, maintained by, or endorsed by Anthropic. "Claude" is a trademark of Anthropic, PBC.
+
+2. **[OpenDesign](https://github.com/open-design/open-design)**:
+   - Full credit for the foundational inspiration behind the `DESIGN.md` brand contract protocol, brand-system prompt rules (Linear, Stripe, Apple, Vercel, etc.), iframe canvas communication, and bringing agentic design workflows to developers.
+   - Huge gratitude to the OpenDesign contributors and maintainers for pioneering open-source AI design systems.
+
 ---
 
 ## 📄 License

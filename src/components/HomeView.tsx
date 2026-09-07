@@ -820,6 +820,33 @@ export function HomeView({
             </div>
           )}
         </section>
+
+        {/* Footer Credits */}
+        <footer className="w-full mt-16 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between text-[11px] text-neutral-500 gap-2 select-none">
+          <div className="flex items-center gap-1.5 flex-wrap justify-center sm:justify-start">
+            <span>Inspired by</span>
+            <a
+              href="https://claude.ai"
+              target="_blank"
+              rel="noreferrer"
+              className="text-neutral-400 hover:text-white underline underline-offset-2 transition-colors"
+            >
+              Claude Design
+            </a>
+            <span>&bull; Concepts referenced from</span>
+            <a
+              href="https://github.com/open-design/open-design"
+              target="_blank"
+              rel="noreferrer"
+              className="text-neutral-400 hover:text-white underline underline-offset-2 transition-colors"
+            >
+              OpenDesign
+            </a>
+          </div>
+          <div className="text-neutral-500">
+            <span>Clean &bull; Single-process &bull; BYOK</span>
+          </div>
+        </footer>
       </main>
 
       {/* Create Design System Modal */}
