@@ -7,19 +7,18 @@ import {
   Plus,
   ArrowUp,
   Check,
-  CheckCircle2,
   ChevronDown,
   Star,
   List as ListIcon,
   LayoutGrid,
-  Pencil,
   Trash2,
-  Code2,
   Feather,
   Layers,
   FolderKanban,
-  MoreHorizontal,
   Settings,
+  Sun,
+  Moon,
+  Compass,
 } from "lucide-react";
 import { ModelPickerPopover } from "@/components/ModelPickerPopover";
 import { CreateDesignSystemModal } from "@/components/CreateDesignSystemModal";
@@ -29,11 +28,14 @@ import {
   type DesignSystem,
 } from "@/lib/design-systems";
 import type { ApiSettings, Project } from "@/lib/storage";
+import { formatModelName } from "@/lib/formatters";
 
 interface HomeViewProps {
   projects: Project[];
   activeProject: Project | null;
   settings: ApiSettings;
+  theme?: "dark" | "light";
+  onToggleTheme?: () => void;
   onUpdateSettings: (newSettings: ApiSettings) => void;
   onOpenSettings: () => void;
   onSelectProject: (projectId: string) => void;
@@ -42,10 +44,35 @@ interface HomeViewProps {
   onSubmitPrompt: (prompt: string, brandId: string) => void;
 }
 
+const INSPIRATION_IDEAS = [
+  {
+    label: "✦ Minimalist Portfolio",
+    prompt: "Design a clean portfolio website for a visual designer with a featured project grid, about bio, and sleek contact drawer.",
+  },
+  {
+    label: "✦ Mobile Banking App",
+    prompt: "Design a mobile banking interface with account balance, card carousel, quick transfers, and recent activity breakdown.",
+  },
+  {
+    label: "✦ Modern SaaS Dashboard",
+    prompt: "Design a modern SaaS analytics dashboard with revenue charts, active team members, and real-time conversion metrics.",
+  },
+  {
+    label: "✦ Editorial Magazine",
+    prompt: "Design a literary editorial homepage with warm serif typography, featured longform story, and newsletter subscription.",
+  },
+  {
+    label: "✦ E-Commerce Showcase",
+    prompt: "Design an elegant luxury e-commerce product page with high-res photo gallery, size selector, and checkout summary.",
+  },
+];
+
 export function HomeView({
   projects,
   activeProject,
   settings,
+  theme = "dark",
+  onToggleTheme,
   onUpdateSettings,
   onOpenSettings,
   onSelectProject,
@@ -53,7 +80,6 @@ export function HomeView({
   onNewProject,
   onSubmitPrompt,
 }: HomeViewProps) {
-  // Tabs: only 'projects' | 'design-systems' (no templates)
   const [activeTab, setActiveTab] = useState<"projects" | "design-systems">("design-systems");
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
@@ -61,7 +87,7 @@ export function HomeView({
   // Hero composer state
   const [prompt, setPrompt] = useState("");
   const [selectedBrandId, setSelectedBrandId] = useState<string>(
-    activeProject?.brandId || "linear"
+    activeProject?.brandId || "claude-anthropic"
   );
   const [isDesignSystemMenuOpen, setIsDesignSystemMenuOpen] = useState(false);
   const [isModelPickerOpen, setIsModelPickerOpen] = useState(false);
@@ -110,10 +136,10 @@ export function HomeView({
 
   const currentBrand =
     allSystems.find((ds) => ds.id === selectedBrandId) || allSystems[0] || {
-      id: "linear",
-      name: "Linear",
-      accentColor: "#5e6ad2",
-      badge: "Dark Minimal",
+      id: "claude-anthropic",
+      name: "Anthropic Design System",
+      accentColor: "#d97757",
+      badge: "Official",
     };
 
   const handleSend = () => {
@@ -154,86 +180,97 @@ export function HomeView({
     return new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" });
   };
 
+  const modelInfo = formatModelName(settings.selectedModel);
+
   return (
-    <div className="min-h-full w-full bg-[#131416] text-[#e3e3e3] flex flex-col font-sans overflow-y-auto selection:bg-amber-500/30 selection:text-white">
+    <div className="min-h-full w-full bg-background text-foreground flex flex-col font-sans overflow-y-auto selection:bg-terracotta/25 selection:text-foreground transition-colors">
       {/* Top Header */}
-      <header className="w-full px-6 py-4 flex items-center justify-between z-20">
-        <div className="flex flex-col">
-          <span className="font-serif text-xl tracking-tight text-white font-normal">
-            Claude Design
-          </span>
-          <span className="text-[11px] text-neutral-400 font-sans tracking-wide">
-            Beta
-          </span>
+      <header className="h-12 w-full px-6 flex items-center justify-between z-20 border-b border-border bg-surface/80 backdrop-blur-md shrink-0 select-none">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-terracotta/10 border border-terracotta/20 flex items-center justify-center text-terracotta shadow-2xs">
+            <Sparkles className="w-4 h-4 fill-terracotta/20 text-terracotta" />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-editorial text-base tracking-tight text-foreground font-medium">
+              Open Claude Design
+            </span>
+            <span className="text-[10px] uppercase font-semibold tracking-wider px-1.5 py-0.5 rounded bg-terracotta/10 text-terracotta border border-terracotta/20">
+              Studio
+            </span>
+          </div>
         </div>
 
-        {/* Right side user avatar / settings trigger */}
-        <div className="flex items-center gap-3">
+        {/* Right Controls */}
+        <div className="flex items-center gap-1.5">
+          {onToggleTheme && (
+            <button
+              onClick={onToggleTheme}
+              className="w-8 h-8 rounded-lg hover:bg-surface-subtle text-foreground-muted hover:text-foreground flex items-center justify-center transition-colors"
+              title={theme === "dark" ? "Switch to Ivory Light mode" : "Switch to Warm Dark mode"}
+            >
+              {theme === "dark" ? (
+                <Sun className="w-4 h-4 text-[#e28767]" />
+              ) : (
+                <Moon className="w-4 h-4 text-foreground" />
+              )}
+            </button>
+          )}
+
           <button
             onClick={onOpenSettings}
-            className="w-8 h-8 rounded-full bg-[#242426] hover:bg-[#2c2c2e] border border-white/10 flex items-center justify-center text-xs font-medium text-neutral-200 transition-colors shadow-sm"
-            title="Settings & API Key"
+            className="w-8 h-8 rounded-lg hover:bg-surface-subtle text-foreground-muted hover:text-foreground flex items-center justify-center transition-colors"
+            title="AI Setup & Settings"
           >
-            A
+            <Settings className="w-4 h-4" />
           </button>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col items-center pt-8 pb-16 px-4 w-full max-w-5xl mx-auto">
+      <main className="flex-1 flex flex-col items-center pt-10 pb-16 px-4 w-full max-w-5xl mx-auto">
         {/* Editorial Headline */}
-        <h1 className="font-serif text-4xl sm:text-5xl font-normal text-white tracking-tight mb-8 text-center select-none">
-          What should we create?
-        </h1>
+        <div className="text-center mb-7 select-none">
+          <h1 className="font-editorial text-4xl sm:text-5xl font-medium text-foreground tracking-tight mb-2">
+            What should we create today?
+          </h1>
+          <p className="text-sm text-foreground-muted max-w-lg mx-auto leading-relaxed font-sans">
+            Describe your interface idea, pick a brand style, and watch your interactive design come alive.
+          </p>
+        </div>
 
         {/* Hero Composer Card */}
-        <div className="w-full max-w-3xl bg-[#1c1c1f] border border-[#2e2e32] rounded-2xl p-4 shadow-2xl relative group focus-within:border-neutral-500 transition-all">
+        <div className="w-full max-w-3xl bg-surface border border-border rounded-2xl p-4 shadow-xl relative group focus-within:border-terracotta transition-all">
           <textarea
             ref={textareaRef}
             rows={3}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Sketch a landing page, dashboard, or interactive app..."
-            className="w-full bg-transparent text-white placeholder:text-neutral-500 text-sm focus:outline-none resize-none leading-relaxed"
+            placeholder="Sketch a landing page, mobile app flow, or dashboard..."
+            className="w-full bg-transparent text-foreground placeholder:text-foreground-muted/60 text-sm focus:outline-none resize-none leading-relaxed"
           />
 
           {/* Bottom Bar inside Composer */}
-          <div className="flex items-center justify-between pt-3 border-t border-white/5 mt-1">
-            {/* Left Controls */}
+          <div className="flex items-center justify-between pt-3 border-t border-border mt-1">
+            {/* Left: Brand Style Selector */}
             <div className="flex items-center gap-2">
-              {/* + Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  textareaRef.current?.focus();
-                  if (!prompt) {
-                    setPrompt("Design a modern responsive UI for ");
-                  }
-                }}
-                className="w-8 h-8 rounded-lg bg-[#242426] hover:bg-[#2c2c2e] border border-[#38383a] text-neutral-300 hover:text-white flex items-center justify-center transition-colors"
-                title="Add inspiration prompt"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-
-              {/* Design System Selector Button */}
               <div className="relative">
                 <button
                   ref={brandButtonRef}
                   type="button"
                   onClick={() => setIsDesignSystemMenuOpen(!isDesignSystemMenuOpen)}
-                  className="bg-[#242426] hover:bg-[#2c2c2e] border border-[#38383a] rounded-lg px-2.5 py-1 flex items-center gap-2.5 text-left transition-colors"
+                  className="bg-surface-subtle hover:bg-surface border border-border rounded-xl px-2.5 py-1.5 flex items-center gap-2 text-left transition-colors"
                 >
-                  <div className="w-6 h-6 rounded-md bg-[#18191c] border border-white/10 flex items-center justify-center text-amber-400 shrink-0">
-                    <Feather className="w-3.5 h-3.5" />
-                  </div>
+                  <div
+                    className="w-4 h-4 rounded-full ring-1 ring-border shrink-0"
+                    style={{ backgroundColor: currentBrand.accentColor }}
+                  />
                   <div className="flex flex-col">
-                    <span className="text-[9px] uppercase tracking-wider text-neutral-400 flex items-center gap-0.5">
-                      Design system
-                      <ChevronDown className="w-2.5 h-2.5 text-neutral-400" />
+                    <span className="text-[9px] uppercase tracking-wider text-foreground-muted flex items-center gap-0.5">
+                      Brand Style
+                      <ChevronDown className="w-2.5 h-2.5 text-foreground-muted" />
                     </span>
-                    <span className="text-xs font-medium text-white truncate max-w-[130px]">
+                    <span className="text-xs font-medium text-foreground truncate max-w-[140px]">
                       {currentBrand.name}
                     </span>
                   </div>
@@ -246,17 +283,17 @@ export function HomeView({
                       className="fixed inset-0 z-30"
                       onClick={() => setIsDesignSystemMenuOpen(false)}
                     />
-                    <div className="absolute top-full mt-2 left-0 w-72 bg-[#18191d] border border-white/10 rounded-xl shadow-2xl p-2 z-40">
-                      <div className="text-[11px] font-semibold text-neutral-400 px-2 py-1 flex items-center justify-between border-b border-white/5 mb-1">
-                        <span>Select Design System</span>
+                    <div className="absolute top-full mt-2 left-0 w-72 bg-surface border border-border rounded-2xl shadow-2xl p-2 z-40 animate-in fade-in zoom-in-95 duration-100">
+                      <div className="text-[11px] font-semibold text-foreground-muted px-2.5 py-1.5 flex items-center justify-between border-b border-border mb-1">
+                        <span>Select Brand Style</span>
                         <button
                           onClick={() => {
                             setIsDesignSystemMenuOpen(false);
                             setIsCreateSystemOpen(true);
                           }}
-                          className="text-[10px] text-amber-400 hover:text-amber-300 font-medium"
+                          className="text-[11px] text-terracotta hover:underline font-medium"
                         >
-                          + New System
+                          + New Style
                         </button>
                       </div>
                       <div className="space-y-1 max-h-64 overflow-y-auto">
@@ -268,24 +305,24 @@ export function HomeView({
                               setSelectedBrandId(brand.id);
                               setIsDesignSystemMenuOpen(false);
                             }}
-                            className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center gap-2.5 transition-colors text-xs ${
+                            className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center gap-2.5 transition-colors text-xs ${
                               brand.id === selectedBrandId
-                                ? "bg-white/10 text-white font-medium"
-                                : "text-neutral-300 hover:bg-white/5 hover:text-white"
+                                ? "bg-terracotta/15 text-foreground font-medium"
+                                : "text-foreground hover:bg-surface-subtle"
                             }`}
                           >
                             <span
-                              className="w-3 h-3 rounded-full shrink-0 ring-1 ring-white/20"
+                              className="w-3.5 h-3.5 rounded-full shrink-0 ring-1 ring-border"
                               style={{ backgroundColor: brand.accentColor }}
                             />
                             <div className="flex-1 min-w-0">
                               <div className="truncate font-medium">{brand.name}</div>
-                              <div className="text-[10px] text-neutral-500 truncate">
+                              <div className="text-[10px] text-foreground-muted truncate">
                                 {brand.badge}
                               </div>
                             </div>
                             {brand.id === selectedBrandId && (
-                              <Check className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                              <Check className="w-3.5 h-3.5 text-terracotta shrink-0" />
                             )}
                           </button>
                         ))}
@@ -294,45 +331,24 @@ export function HomeView({
                   </>
                 )}
               </div>
-
-              {/* Code Mode Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  textareaRef.current?.focus();
-                  if (!prompt.includes("Code:")) {
-                    setPrompt((prev) => (prev ? prev + "\nInclude full clean HTML & Tailwind code." : "Build a clean component in HTML and Tailwind."));
-                  }
-                }}
-                className="w-8 h-8 rounded-lg bg-[#242426] hover:bg-[#2c2c2e] border border-[#38383a] text-neutral-400 hover:text-white flex items-center justify-center transition-colors"
-                title="Code mode hint"
-              >
-                <Code2 className="w-4 h-4" />
-              </button>
             </div>
 
-            {/* Right Controls: Model Pill & Send Button */}
+            {/* Right: Model Pill & Send Button */}
             <div className="flex items-center gap-2">
-              {/* Model Pill */}
               <div className="relative">
                 <button
                   ref={modelButtonRef}
                   type="button"
                   onClick={() => setIsModelPickerOpen(!isModelPickerOpen)}
-                  className="bg-[#242426] hover:bg-[#2c2c2e] border border-[#38383a] rounded-lg px-2.5 py-1 flex items-center gap-2 text-left transition-colors"
+                  className="bg-surface-subtle hover:bg-surface border border-border rounded-xl px-2.5 py-1.5 flex items-center gap-2 text-left transition-colors"
                 >
                   <div className="flex flex-col">
-                    <span className="text-[9px] uppercase tracking-wider text-neutral-400 flex items-center gap-0.5">
+                    <span className="text-[9px] uppercase tracking-wider text-foreground-muted flex items-center gap-0.5">
                       Model
-                      <ChevronDown className="w-2.5 h-2.5 text-neutral-400" />
+                      <ChevronDown className="w-2.5 h-2.5 text-foreground-muted" />
                     </span>
-                    <span className="text-xs font-mono font-medium text-white truncate max-w-[110px]">
-                      {settings.selectedModel
-                        ? settings.selectedModel
-                            .replace(/^accounts\/[^\/]+\/models\//, "")
-                            .replace(/^anthropic\//, "")
-                            .replace(/^openai\//, "")
-                        : "Select model"}
+                    <span className="text-xs font-medium text-foreground truncate max-w-[130px]">
+                      {modelInfo.displayName}
                     </span>
                   </div>
                 </button>
@@ -356,8 +372,8 @@ export function HomeView({
                 disabled={!prompt.trim()}
                 className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
                   prompt.trim()
-                    ? "bg-[#c25e3d] hover:bg-[#d46743] text-white shadow-lg shadow-orange-950/40 active:scale-95"
-                    : "bg-[#2a2a2e] text-neutral-500 cursor-not-allowed"
+                    ? "bg-terracotta hover:bg-terracotta-400 text-white shadow-md shadow-terracotta/20 active:scale-95"
+                    : "bg-surface-subtle text-foreground-muted border border-border cursor-not-allowed"
                 }`}
                 title="Create design"
               >
@@ -367,82 +383,90 @@ export function HomeView({
           </div>
         </div>
 
-        {/* Lower Section: Tabs, Search, and Lists */}
-        <section className="w-full mt-14">
-          {/* Navigation & Controls Row */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-white/5">
-            {/* Tabs: Projects & Design systems (Strictly NO templates) */}
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => setActiveTab("projects")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  activeTab === "projects"
-                    ? "bg-[#242426] text-white border border-[#38383a] shadow-sm"
-                    : "text-neutral-400 hover:text-white hover:bg-white/5"
-                }`}
-              >
-                Projects ({projects.length})
-              </button>
+        {/* Quick Inspiration Chips */}
+        <div className="w-full max-w-3xl mt-3 flex items-center gap-1.5 flex-wrap justify-center">
+          {INSPIRATION_IDEAS.map((idea) => (
+            <button
+              key={idea.label}
+              type="button"
+              onClick={() => {
+                setPrompt(idea.prompt);
+                textareaRef.current?.focus();
+              }}
+              className="px-2.5 py-1 rounded-lg bg-surface-subtle hover:bg-surface border border-border text-[11px] text-foreground-muted hover:text-foreground transition-all hover:border-terracotta/40 shadow-2xs"
+            >
+              {idea.label}
+            </button>
+          ))}
+        </div>
 
+        {/* Lower Section: Tabs & Lists */}
+        <section className="w-full mt-12">
+          {/* Navigation & Controls Row */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-border">
+            {/* Tabs */}
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setActiveTab("design-systems")}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   activeTab === "design-systems"
-                    ? "bg-[#242426] text-white border border-[#38383a] shadow-sm"
-                    : "text-neutral-400 hover:text-white hover:bg-white/5"
+                    ? "bg-surface text-foreground border border-border shadow-sm"
+                    : "text-foreground-muted hover:text-foreground hover:bg-surface-subtle"
                 }`}
               >
-                Design systems
+                Brand Styles ({allSystems.length})
+              </button>
+
+              <button
+                onClick={() => setActiveTab("projects")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  activeTab === "projects"
+                    ? "bg-surface text-foreground border border-border shadow-sm"
+                    : "text-foreground-muted hover:text-foreground hover:bg-surface-subtle"
+                }`}
+              >
+                Saved Designs ({projects.length})
               </button>
             </div>
 
-            {/* Right Controls: Create System / New Project, Search, View Toggle */}
+            {/* Right Controls: Create Style / New Project, Search, View Toggle */}
             <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
               {activeTab === "design-systems" ? (
                 <button
                   onClick={() => setIsCreateSystemOpen(true)}
-                  className="px-3 py-1.5 text-xs font-medium bg-[#242426] hover:bg-[#2c2c2e] text-white border border-[#38383a] rounded-lg flex items-center gap-1.5 transition-colors shadow-sm"
+                  className="px-3 py-1.5 text-xs font-medium bg-surface hover:bg-surface-subtle text-foreground border border-border rounded-lg flex items-center gap-1.5 transition-colors shadow-sm"
                 >
-                  <Plus className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Create design system</span>
+                  <Plus className="w-3.5 h-3.5 text-terracotta" />
+                  <span>Create Brand Style</span>
                 </button>
               ) : (
                 <button
                   onClick={onNewProject}
-                  className="px-3 py-1.5 text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-black rounded-lg flex items-center gap-1 transition-colors shadow-sm shadow-amber-500/20"
+                  className="px-3 py-1.5 text-xs font-medium bg-terracotta hover:bg-terracotta-400 text-white rounded-lg flex items-center gap-1.5 transition-colors shadow-sm shadow-terracotta/20"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>New Project</span>
+                  <span>New Design</span>
                 </button>
               )}
 
               {/* Search Box */}
               <div className="relative">
-                <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <Search className="w-3.5 h-3.5 text-foreground-muted absolute left-2.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Search"
+                  placeholder="Filter..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-[#18191c] border border-[#2e2e32] rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-neutral-500 focus:outline-none focus:border-neutral-400 w-36 sm:w-44 transition-all"
+                  className="bg-surface-subtle border border-border rounded-lg pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-foreground-muted focus:outline-none focus:border-terracotta w-36 sm:w-44 transition-all"
                 />
               </div>
 
-              {/* Star Filter */}
-              <button
-                type="button"
-                className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent hover:border-[#38383a] transition-colors"
-                title="Filter favorites"
-              >
-                <Star className="w-3.5 h-3.5" />
-              </button>
-
               {/* View Toggle */}
-              <div className="flex items-center bg-[#18191c] border border-[#2e2e32] rounded-lg p-0.5">
+              <div className="flex items-center bg-surface-subtle border border-border rounded-lg p-0.5">
                 <button
                   onClick={() => setViewMode("table")}
                   className={`p-1 rounded ${
-                    viewMode === "table" ? "bg-white/10 text-white" : "text-neutral-400 hover:text-white"
+                    viewMode === "table" ? "bg-surface text-foreground shadow-sm" : "text-foreground-muted hover:text-foreground"
                   }`}
                   title="List view"
                 >
@@ -451,7 +475,7 @@ export function HomeView({
                 <button
                   onClick={() => setViewMode("grid")}
                   className={`p-1 rounded ${
-                    viewMode === "grid" ? "bg-white/10 text-white" : "text-neutral-400 hover:text-white"
+                    viewMode === "grid" ? "bg-surface text-foreground shadow-sm" : "text-foreground-muted hover:text-foreground"
                   }`}
                   title="Grid view"
                 >
@@ -466,36 +490,31 @@ export function HomeView({
             <div className="mt-4">
               {viewMode === "table" ? (
                 <div className="w-full overflow-x-auto">
-                  <table className="w-full text-left text-xs text-neutral-300">
+                  <table className="w-full text-left text-xs text-foreground">
                     <thead>
-                      <tr className="text-neutral-500 border-b border-white/5 text-[11px] font-medium">
-                        <th className="py-2.5 px-3 font-normal">Name</th>
-                        <th className="py-2.5 px-3 font-normal">
-                          <span className="flex items-center gap-1 cursor-pointer hover:text-neutral-300">
-                            Updated <ChevronDown className="w-3 h-3" />
-                          </span>
-                        </th>
-                        <th className="py-2.5 px-3 font-normal">All owners</th>
-                        <th className="py-2.5 px-3 font-normal text-center">Published</th>
-                        <th className="py-2.5 px-3 font-normal text-right">Access</th>
+                      <tr className="text-foreground-muted border-b border-border text-[11px] font-medium">
+                        <th className="py-2.5 px-3 font-normal">Style Name & Palette</th>
+                        <th className="py-2.5 px-3 font-normal">Aesthetic / Mood</th>
+                        <th className="py-2.5 px-3 font-normal">Canvas</th>
+                        <th className="py-2.5 px-3 font-normal">Updated</th>
+                        <th className="py-2.5 px-3 font-normal text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5">
+                    <tbody className="divide-y divide-border">
                       {filteredSystems.map((system) => {
                         const isSelected = system.id === selectedBrandId;
                         return (
                           <tr
                             key={system.id}
                             onClick={() => setSelectedBrandId(system.id)}
-                            className={`group cursor-pointer hover:bg-white/[0.03] transition-colors ${
-                              isSelected ? "bg-white/[0.04]" : ""
+                            className={`group cursor-pointer hover:bg-surface-subtle transition-colors ${
+                              isSelected ? "bg-terracotta/10" : ""
                             }`}
                           >
                             {/* Swatch & Name */}
                             <td className="py-3 px-3">
                               <div className="flex items-center gap-3">
-                                {/* Swatch Card */}
-                                <div className="w-14 h-9 rounded-md border border-white/10 overflow-hidden flex shadow-sm shrink-0 relative bg-[#1c1c1f]">
+                                <div className="w-14 h-8 rounded-md border border-border overflow-hidden flex shadow-2xs shrink-0 bg-surface">
                                   {system.swatchColors && system.swatchColors.length >= 3 ? (
                                     system.swatchColors.map((col, idx) => (
                                       <div
@@ -509,7 +528,7 @@ export function HomeView({
                                       className="w-full h-full flex items-center justify-center"
                                       style={{ backgroundColor: system.accentColor }}
                                     >
-                                      <span className="text-[10px] font-bold text-white uppercase drop-shadow">
+                                      <span className="text-[9px] font-bold text-white uppercase drop-shadow">
                                         {system.name.slice(0, 3)}
                                       </span>
                                     </div>
@@ -518,47 +537,51 @@ export function HomeView({
 
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-2">
-                                    <span className="font-medium text-white group-hover:text-amber-400 transition-colors">
+                                    <span className="font-medium text-foreground group-hover:text-terracotta transition-colors">
                                       {system.name}
                                     </span>
-                                    {system.badge && (
-                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-neutral-400 border border-white/5">
-                                        {system.badge}
-                                      </span>
-                                    )}
                                   </div>
-                                  <p className="text-[11px] text-neutral-500 truncate max-w-md mt-0.5">
+                                  <p className="text-[11px] text-foreground-muted truncate max-w-md mt-0.5">
                                     {system.description}
                                   </p>
                                 </div>
                               </div>
                             </td>
 
+                            {/* Badge */}
+                            <td className="py-3 px-3 whitespace-nowrap">
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface-subtle text-foreground-muted border border-border">
+                                {system.badge}
+                              </span>
+                            </td>
+
+                            {/* Canvas Mode */}
+                            <td className="py-3 px-3 whitespace-nowrap text-foreground-muted text-[11px]">
+                              {system.bgDark ? "Dark Canvas" : "Light Canvas"}
+                            </td>
+
                             {/* Updated */}
-                            <td className="py-3 px-3 text-neutral-400 text-[11px] whitespace-nowrap">
+                            <td className="py-3 px-3 text-foreground-muted text-[11px] whitespace-nowrap">
                               {formatRelativeTime(system.updatedAt)}
                             </td>
 
-                            {/* Owner */}
-                            <td className="py-3 px-3 whitespace-nowrap">
-                              <div className="flex items-center gap-1.5">
-                                <span className="w-4 h-4 rounded-full bg-neutral-700 text-neutral-200 text-[9px] flex items-center justify-center font-bold">
-                                  {system.owner === "You" ? "Y" : "I"}
-                                </span>
-                                <span className="text-neutral-400 text-[11px]">
-                                  {system.owner || "Included"}
-                                </span>
-                              </div>
-                            </td>
-
-                            {/* Published Checkmark */}
-                            <td className="py-3 px-3 text-center">
-                              <CheckCircle2 className="w-4 h-4 text-neutral-500 inline-block" />
-                            </td>
-
-                            {/* Actions / Access */}
+                            {/* Actions */}
                             <td className="py-3 px-3 text-right whitespace-nowrap">
-                              <div className="flex items-center justify-end gap-1 text-neutral-500">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedBrandId(system.id);
+                                    textareaRef.current?.focus();
+                                  }}
+                                  className={`px-2.5 py-1 rounded text-[11px] border transition-colors ${
+                                    isSelected
+                                      ? "bg-terracotta text-white border-transparent shadow-xs"
+                                      : "bg-surface-subtle hover:bg-surface text-foreground border-border"
+                                  }`}
+                                >
+                                  {isSelected ? "Active" : "Use Style"}
+                                </button>
                                 {system.isCustom && (
                                   <button
                                     onClick={(e) => {
@@ -566,28 +589,12 @@ export function HomeView({
                                       deleteCustomDesignSystem(system.id);
                                       refreshSystems();
                                     }}
-                                    className="p-1 hover:text-red-400 rounded transition-colors"
-                                    title="Delete custom system"
+                                    className="p-1 hover:text-red-400 text-foreground-muted rounded transition-colors"
+                                    title="Delete custom style"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
                                 )}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedBrandId(system.id);
-                                  }}
-                                  className="p-1 hover:text-neutral-300 rounded transition-colors"
-                                  title="Select"
-                                >
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  className="p-1 hover:text-neutral-300 rounded transition-colors"
-                                  title="More options"
-                                >
-                                  <MoreHorizontal className="w-3.5 h-3.5" />
-                                </button>
                               </div>
                             </td>
                           </tr>
@@ -605,47 +612,45 @@ export function HomeView({
                       <div
                         key={system.id}
                         onClick={() => setSelectedBrandId(system.id)}
-                        className={`p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
+                        className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
                           isSelected
-                            ? "bg-white/[0.06] border-amber-500/50 shadow-md"
-                            : "bg-[#18191c] border-white/5 hover:border-white/15"
+                            ? "bg-surface border-terracotta shadow-md shadow-terracotta/10"
+                            : "bg-surface border-border hover:border-terracotta/40 hover:shadow-sm"
                         }`}
                       >
-                        <div className="flex items-start gap-3">
-                          <div className="w-12 h-9 rounded-md border border-white/10 overflow-hidden flex shrink-0">
-                            {system.swatchColors ? (
-                              system.swatchColors.map((col, idx) => (
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="w-16 h-8 rounded-md border border-border overflow-hidden flex shrink-0">
+                              {system.swatchColors ? (
+                                system.swatchColors.map((col, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="flex-1 h-full"
+                                    style={{ backgroundColor: col }}
+                                  />
+                                ))
+                              ) : (
                                 <div
-                                  key={idx}
-                                  className="flex-1 h-full"
-                                  style={{ backgroundColor: col }}
+                                  className="w-full h-full"
+                                  style={{ backgroundColor: system.accentColor }}
                                 />
-                              ))
-                            ) : (
-                              <div
-                                className="w-full h-full"
-                                style={{ backgroundColor: system.accentColor }}
-                              />
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between">
-                              <span className="font-medium text-white text-xs truncate">
-                                {system.name}
-                              </span>
-                              {isSelected && (
-                                <Check className="w-3 h-3 text-amber-400 shrink-0" />
                               )}
                             </div>
-                            <p className="text-[10px] text-neutral-400 line-clamp-2 mt-1">
-                              {system.description}
-                            </p>
+                            {isSelected && (
+                              <span className="text-[10px] text-terracotta font-medium flex items-center gap-1 bg-terracotta/10 px-2 py-0.5 rounded-full">
+                                <Check className="w-3 h-3" /> Active
+                              </span>
+                            )}
                           </div>
+                          <h3 className="font-medium text-foreground text-xs">{system.name}</h3>
+                          <p className="text-[11px] text-foreground-muted line-clamp-2 mt-1 leading-relaxed">
+                            {system.description}
+                          </p>
                         </div>
 
-                        <div className="flex items-center justify-between pt-3 mt-3 border-t border-white/5 text-[10px] text-neutral-500">
+                        <div className="flex items-center justify-between pt-3 mt-3 border-t border-border text-[10px] text-foreground-muted">
                           <span>{system.badge}</span>
-                          <span>{formatRelativeTime(system.updatedAt)}</span>
+                          <span>{system.bgDark ? "Dark" : "Light"}</span>
                         </div>
                       </div>
                     );
@@ -659,57 +664,57 @@ export function HomeView({
           {activeTab === "projects" && (
             <div className="mt-4">
               {filteredProjects.length === 0 ? (
-                <div className="p-12 text-center border border-dashed border-white/10 rounded-2xl">
-                  <FolderKanban className="w-8 h-8 text-neutral-500 mx-auto mb-2" />
-                  <p className="text-xs text-neutral-300 font-medium">No projects found</p>
-                  <p className="text-[11px] text-neutral-500 mt-0.5">
-                    Start by typing a prompt in the composer above or create a new project.
+                <div className="p-12 text-center border border-dashed border-border rounded-2xl">
+                  <FolderKanban className="w-8 h-8 text-foreground-muted mx-auto mb-2" />
+                  <p className="text-xs text-foreground font-medium">No saved designs yet</p>
+                  <p className="text-[11px] text-foreground-muted mt-0.5">
+                    Start by typing a prompt in the composer above.
                   </p>
                   <button
                     onClick={onNewProject}
-                    className="mt-4 px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs rounded-lg inline-flex items-center gap-1.5 transition-colors"
+                    className="mt-4 px-3 py-1.5 bg-terracotta hover:bg-terracotta-400 text-white font-medium text-xs rounded-lg inline-flex items-center gap-1.5 transition-colors shadow-sm shadow-terracotta/20"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Create First Project</span>
+                    <span>Create First Design</span>
                   </button>
                 </div>
               ) : viewMode === "table" ? (
                 <div className="w-full overflow-x-auto">
-                  <table className="w-full text-left text-xs text-neutral-300">
+                  <table className="w-full text-left text-xs text-foreground">
                     <thead>
-                      <tr className="text-neutral-500 border-b border-white/5 text-[11px] font-medium">
+                      <tr className="text-foreground-muted border-b border-border text-[11px] font-medium">
                         <th className="py-2.5 px-3 font-normal">Design Name</th>
-                        <th className="py-2.5 px-3 font-normal">Design System</th>
-                        <th className="py-2.5 px-3 font-normal">Versions</th>
+                        <th className="py-2.5 px-3 font-normal">Brand Style</th>
+                        <th className="py-2.5 px-3 font-normal">Iterations</th>
                         <th className="py-2.5 px-3 font-normal">Updated</th>
                         <th className="py-2.5 px-3 font-normal text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5">
+                    <tbody className="divide-y divide-border">
                       {filteredProjects.map((p) => {
                         const brand =
                           allSystems.find((ds) => ds.id === p.brandId) || {
                             name: p.brandId,
-                            accentColor: "#5e6ad2",
+                            accentColor: "#d97757",
                           };
                         return (
                           <tr
                             key={p.id}
                             onClick={() => onSelectProject(p.id)}
-                            className="group cursor-pointer hover:bg-white/[0.03] transition-colors"
+                            className="group cursor-pointer hover:bg-surface-subtle transition-colors"
                           >
                             {/* Project Name & Preview Icon */}
                             <td className="py-3 px-3">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-neutral-300 group-hover:text-amber-400 group-hover:border-amber-500/30 transition-colors shrink-0">
+                                <div className="w-8 h-8 rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-foreground-muted group-hover:text-terracotta group-hover:border-terracotta/40 transition-colors shrink-0">
                                   <Layers className="w-4 h-4" />
                                 </div>
                                 <div className="min-w-0">
-                                  <span className="font-medium text-white group-hover:text-amber-400 transition-colors truncate block">
+                                  <span className="font-medium text-foreground group-hover:text-terracotta transition-colors truncate block">
                                     {p.name}
                                   </span>
-                                  <span className="text-[10px] text-neutral-500">
-                                    {p.messages.length} messages
+                                  <span className="text-[10px] text-foreground-muted">
+                                    {p.messages.length} revisions
                                   </span>
                                 </div>
                               </div>
@@ -717,7 +722,7 @@ export function HomeView({
 
                             {/* Design System */}
                             <td className="py-3 px-3">
-                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[11px] text-neutral-300">
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface-subtle border border-border text-[11px] text-foreground">
                                 <span
                                   className="w-2 h-2 rounded-full"
                                   style={{ backgroundColor: brand.accentColor }}
@@ -727,12 +732,12 @@ export function HomeView({
                             </td>
 
                             {/* Version count */}
-                            <td className="py-3 px-3 text-neutral-400 text-[11px]">
+                            <td className="py-3 px-3 text-foreground-muted text-[11px]">
                               {p.versions.length} {p.versions.length === 1 ? "version" : "versions"}
                             </td>
 
                             {/* Updated */}
-                            <td className="py-3 px-3 text-neutral-400 text-[11px] whitespace-nowrap">
+                            <td className="py-3 px-3 text-foreground-muted text-[11px] whitespace-nowrap">
                               {formatRelativeTime(p.updatedAt)}
                             </td>
 
@@ -744,7 +749,7 @@ export function HomeView({
                                     e.stopPropagation();
                                     onSelectProject(p.id);
                                   }}
-                                  className="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-[11px] text-neutral-200 hover:text-white transition-colors"
+                                  className="px-2.5 py-1 rounded bg-surface-subtle hover:bg-surface text-[11px] text-foreground border border-border hover:border-terracotta/40 transition-colors"
                                 >
                                   Open
                                 </button>
@@ -754,8 +759,8 @@ export function HomeView({
                                       e.stopPropagation();
                                       onDeleteProject(p.id);
                                     }}
-                                    className="p-1 text-neutral-500 hover:text-red-400 rounded transition-colors"
-                                    title="Delete project"
+                                    className="p-1 text-foreground-muted hover:text-red-400 rounded transition-colors"
+                                    title="Delete design"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
@@ -775,40 +780,40 @@ export function HomeView({
                     const brand =
                       allSystems.find((ds) => ds.id === p.brandId) || {
                         name: p.brandId,
-                        accentColor: "#5e6ad2",
+                        accentColor: "#d97757",
                       };
                     return (
                       <div
                         key={p.id}
                         onClick={() => onSelectProject(p.id)}
-                        className="p-4 rounded-xl bg-[#18191c] border border-white/5 hover:border-white/15 transition-all cursor-pointer flex flex-col justify-between group"
+                        className="p-4 rounded-xl bg-surface border border-border hover:border-terracotta/40 transition-all cursor-pointer flex flex-col justify-between group shadow-sm hover:shadow-md"
                       >
                         <div>
                           <div className="flex items-start justify-between">
-                            <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-neutral-300 group-hover:text-amber-400 transition-colors">
+                            <div className="w-8 h-8 rounded-lg bg-surface-subtle border border-border flex items-center justify-center text-foreground-muted group-hover:text-terracotta transition-colors">
                               <Layers className="w-4 h-4" />
                             </div>
-                            <span className="text-[10px] text-neutral-500">
+                            <span className="text-[10px] text-foreground-muted">
                               {formatRelativeTime(p.updatedAt)}
                             </span>
                           </div>
-                          <h3 className="font-medium text-white text-xs mt-3 group-hover:text-amber-400 transition-colors truncate">
+                          <h3 className="font-medium text-foreground text-xs mt-3 group-hover:text-terracotta transition-colors truncate">
                             {p.name}
                           </h3>
-                          <p className="text-[10px] text-neutral-400 mt-0.5">
+                          <p className="text-[10px] text-foreground-muted mt-0.5">
                             {p.versions.length} versions &bull; {p.messages.length} turns
                           </p>
                         </div>
 
-                        <div className="flex items-center justify-between pt-3 mt-3 border-t border-white/5">
-                          <span className="inline-flex items-center gap-1.5 text-[10px] text-neutral-400">
+                        <div className="flex items-center justify-between pt-3 mt-3 border-t border-border">
+                          <span className="inline-flex items-center gap-1.5 text-[10px] text-foreground-muted">
                             <span
                               className="w-2 h-2 rounded-full"
                               style={{ backgroundColor: brand.accentColor }}
                             />
                             {brand.name}
                           </span>
-                          <span className="text-[10px] text-amber-400 font-medium group-hover:underline">
+                          <span className="text-[10px] text-terracotta font-medium group-hover:underline">
                             Open &rarr;
                           </span>
                         </div>
@@ -821,30 +826,15 @@ export function HomeView({
           )}
         </section>
 
-        {/* Footer Credits */}
-        <footer className="w-full mt-16 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between text-[11px] text-neutral-500 gap-2 select-none">
+        {/* Footer */}
+        <footer className="w-full mt-16 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between text-[11px] text-foreground-muted gap-2 select-none">
           <div className="flex items-center gap-1.5 flex-wrap justify-center sm:justify-start">
-            <span>Inspired by</span>
-            <a
-              href="https://claude.ai/design"
-              target="_blank"
-              rel="noreferrer"
-              className="text-neutral-400 hover:text-white underline underline-offset-2 transition-colors"
-            >
-              Claude Design
-            </a>
-            <span>&bull; Concepts referenced from</span>
-            <a
-              href="https://github.com/open-design/open-design"
-              target="_blank"
-              rel="noreferrer"
-              className="text-neutral-400 hover:text-white underline underline-offset-2 transition-colors"
-            >
-              OpenDesign
-            </a>
+            <span>Crafted for UI/UX designers</span>
+            <span>&bull;</span>
+            <span>Inspired by Claude Design</span>
           </div>
-          <div className="text-neutral-500">
-            <span>Clean &bull; Single-process &bull; BYOK</span>
+          <div>
+            <span>Editorial Warmth &bull; Live Interactive Canvas</span>
           </div>
         </footer>
       </main>

@@ -1,17 +1,18 @@
 export const IFRAME_BRIDGE_SCRIPT = `
-<script id="claude-design-bridge">
+<script id="open-claude-design-bridge">
 (function() {
   var mode = 'interact'; // 'interact' or 'inspect'
   var hoveredEl = null;
 
   var style = document.createElement('style');
-  style.id = 'claude-design-bridge-styles';
+  style.id = 'open-claude-design-bridge-styles';
   style.textContent = \`
     .cd-inspect-hover {
-      outline: 2px solid #f59e0b !important;
+      outline: 2px solid #d97757 !important;
       outline-offset: -2px !important;
       cursor: crosshair !important;
-      background-color: rgba(245, 158, 11, 0.08) !important;
+      background-color: rgba(217, 119, 87, 0.12) !important;
+      transition: outline 0.1s ease, background-color 0.1s ease !important;
     }
   \`;
   document.head.appendChild(style);
@@ -96,8 +97,9 @@ export function injectBridgeIntoHtml(rawHtml: string): string {
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <style>body { font-family: 'Inter', sans-serif; }</style>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif; }</style>
 </head>
 <body class="bg-neutral-900 text-neutral-100 min-h-screen">
   ${processed}
@@ -128,7 +130,7 @@ export function injectBridgeIntoHtml(rawHtml: string): string {
   }
 
   // 3. Inject our inspector bridge
-  if (!processed.includes("claude-design-bridge")) {
+  if (!processed.includes("open-claude-design-bridge")) {
     if (processed.includes("</body>")) {
       processed = processed.replace("</body>", `${IFRAME_BRIDGE_SCRIPT}\n</body>`);
     } else {

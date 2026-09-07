@@ -20,41 +20,31 @@ Most AI design tools are either locked behind closed platforms or wrapped in com
 
 ## ✨ Features
 
-### 1. Claude Design Homepage
-- **Editorial Typography**: Styled with serif headlines (*"What should we create?"*) matching the official Claude Design aesthetic.
-- **Hero Composer**: Prompt card equipped with quick design system picker, model selector pill, code mode, and one-click launch.
-- **Design Systems Tab**: Visual swatch palette cards, timestamps, owner badges, and a custom design system creator.
-- **Projects Tab**: Easily browse, open, rename, or delete past design projects stored in local state.
+### 1. Open Claude Design Homepage
+- **Editorial Typography**: Styled with serif headlines (*"What should we create today?"*) matching the official Claude Design aesthetic.
+- **Hero Composer**: Prompt card equipped with brand style picker, friendly model selector pill, one-click creative inspiration chips, and launch button.
+- **Brand Styles Tab**: Visual swatch palette cards, aesthetic mood tags, atmosphere badges, and an intuitive visual brand style creator.
+- **Saved Designs Tab**: Easily browse, open, rename, or delete past design projects stored in local state.
 
 ### 2. 2-Pane Studio Canvas
-- **Conversational Design Brief**: Interactive chat on the left to iteratively refine prototypes and generate variations.
+- **Conversational Design Brief**: Interactive chat on the left to iteratively refine prototypes and generate variations with real-world UI starters and quick enhancement prompts.
 - **Live Sandboxed Preview**: Safe, isolated `<iframe>` canvas that streams live HTML/CSS updates as the model generates.
-- **Inspect & Edit Mode**: Click any element or section in the preview to attach its selector and text snippet to your next prompt for pinpoint revisions.
-- **Interact Mode**: Click buttons, toggle tabs, test dropdowns, and verify interactive scripts inside the preview.
+- **Click-to-Edit Mode**: Click any element or section in the preview to attach a clean, human-friendly component tag (e.g. *"Hero Section"*, *"Pricing Tier"*) for pinpoint revisions.
+- **Interact Mode**: Test buttons, toggle tabs, try dropdowns, and verify interactive scripts directly inside the live prototype.
 
-### 3. Model & Effort Picker Popover
-- Recreates the Claude Design model pill (`[Model] [Effort] ⌵`).
-- Choose reasoning effort (`Low`, `Medium`, `High`) for models supporting extended thinking.
-- Dynamic refresh button to fetch new models from your endpoint on the fly.
+### 3. Friendly Model & Thinking Depth Popover
+- Recreates the iconic Claude Design model pill (`[Model] ⌵`).
+- Choose Design Thinking Depth (*Fast Draft*, *Balanced Craft*, *Deep Thinking*).
+- Formats raw technical model identifiers into clean labels (e.g. *Claude 3.7 Sonnet*, *Claude 3.5 Sonnet*, *GPT-4o*).
 
-### 4. Brand Design Systems (`DESIGN.md`)
-Includes curated built-in presets plus the ability to create and save custom brands:
-- **Linear**: Dark minimal, starlight borders, indigo-violet accents.
-- **Stripe**: World-class fintech elegance, clean light mode, vibrant gradients.
-- **Apple**: Human interface aesthetics, expansive whitespace, refined curves.
-- **Vercel**: Developer high-contrast monochrome.
-- **Warm Editorial**: Literary serif typography, warm parchment tones, magazine layout.
-- **Modern SaaS**: Friendly modern startup UI with rounded cards and soft glows.
-- **Neo-Brutalist**: High-energy bold borders, hard offset drop shadows, saturated pop colors.
-- **Modernist**: Swiss-style typography, asymmetrical grid balance, crimson accents.
-- **Claude / Anthropic**: Warm dark workspace, terracotta and amber accents.
-- **DCT Abu Dhabi**: Cultural luxury, desert terracotta, and emerald oasis highlights.
-- **Custom Design Systems**: Create your own brands with custom colors, mode (dark/light), and markdown design guidelines.
+### 4. Brand Design Systems & Visual Creator
+- **Curated Presets**: Anthropic, Linear, Stripe, Apple, Vercel, Warm Editorial, Modern SaaS, Neo-Brutalist, Modernist, and DCT Abu Dhabi.
+- **Visual Brand Creator**: Designed specifically for UI/UX creators—pick colors, choose visual moods (Minimal, Editorial, SaaS, Luxury, Bold), select typography pairings, and write natural notes without prompt engineering.
 
 ### 5. Multi-Device Viewport & Export
-- **Responsive Viewport Controls**: Instantly toggle between Desktop (1440px), Tablet (768px), Mobile (375px), and Fluid (100%).
+- **Responsive Viewport Controls**: Instantly toggle between Desktop (1440px), Tablet (768px), Mobile (375px), and Responsive (100%).
 - **Version Scrubber**: Step back and forth through previous iterations (`< v1 / v3 >`) to compare or revert designs.
-- **One-Click Export**: Inspect raw code, copy HTML/CSS to clipboard, or download standalone offline `.html` files.
+- **One-Click Export**: Download standalone offline `.html` prototype files, copy shareable HTML, or open in fullscreen.
 
 ---
 
@@ -76,10 +66,10 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### 3. Configure Your Provider
-1. Click the **avatar icon (A)** in the top right or click the model selector.
-2. Enter your **Base URL** (e.g. `https://openrouter.ai/api/v1` or local Ollama `http://localhost:11434/v1`) and **API Key**.
-3. Click **"Fetch models from API"** to discover and select available models.
+### 3. Connect Your AI Provider
+1. Click the **Settings icon** in the top right.
+2. Select your provider preset (**OpenRouter**, **OpenAI**, or **Local Ollama**).
+3. Paste your **API Key** (or use Local Ollama with zero key required).
 4. Start designing!
 
 ---
@@ -100,7 +90,7 @@ open-claude-design/
 │   │   ├── ChatPane.tsx           # Left conversational brief pane
 │   │   ├── CreateDesignSystemModal.tsx # Custom design system creator
 │   │   ├── Header.tsx             # Studio header with brand & project switchers
-│   │   ├── HomeView.tsx           # Claude Design homepage with hero composer & tabs
+│   │   ├── HomeView.tsx           # Open Claude Design homepage with hero composer & tabs
 │   │   ├── ModelPickerPopover.tsx # Model pill dropdown with effort selector
 │   │   ├── PreviewFrame.tsx       # Sandboxed iframe with inspect/edit highlighting
 │   │   ├── PreviewPane.tsx        # Right canvas pane with viewport toggles

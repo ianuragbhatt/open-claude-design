@@ -55,8 +55,8 @@ export function PreviewFrame({
 
   if (!html && isLoading) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center text-neutral-500 bg-[#0a0a0c]">
-        <div className="w-8 h-8 rounded-full border-2 border-amber-500/20 border-t-amber-500 animate-spin mb-3" />
+      <div className="w-full h-full flex flex-col items-center justify-center text-foreground-muted bg-surface">
+        <div className="w-8 h-8 rounded-full border-2 border-terracotta/20 border-t-terracotta animate-spin mb-3" />
         <p className="text-xs font-medium">Generating prototype...</p>
       </div>
     );
@@ -64,12 +64,12 @@ export function PreviewFrame({
 
   if (!html) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center text-neutral-500 bg-[#0a0a0c] p-6 text-center">
-        <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center mb-3">
+      <div className="w-full h-full flex flex-col items-center justify-center text-foreground-muted bg-surface p-6 text-center">
+        <div className="w-12 h-12 rounded-2xl bg-surface-subtle border border-border flex items-center justify-center mb-3">
           <span className="text-xl">✨</span>
         </div>
-        <p className="text-sm font-medium text-neutral-300 mb-1">Canvas is ready</p>
-        <p className="text-xs text-neutral-500 max-w-sm">
+        <p className="text-sm font-medium text-foreground mb-1 font-serif">Canvas is ready</p>
+        <p className="text-xs text-foreground-muted max-w-sm">
           Describe the interface, landing page, or dashboard you want to design on the left to start.
         </p>
       </div>

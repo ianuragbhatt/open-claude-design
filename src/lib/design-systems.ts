@@ -15,6 +15,25 @@ export interface DesignSystem {
 
 export const DESIGN_SYSTEMS: DesignSystem[] = [
   {
+    id: "claude-anthropic",
+    name: "Anthropic Design System",
+    description: "Warm espresso & ivory canvas, refined Newsreader serif typography, and signature terracotta accents.",
+    badge: "Official Theme",
+    accentColor: "#d97757",
+    bgDark: true,
+    swatchColors: ["#1f1e1c", "#282724", "#d97757", "#faf9f5"],
+    owner: "Included",
+    updatedAt: "Built-in",
+    published: true,
+    promptGuidance: `
+DESIGN SYSTEM: ANTHROPIC DESIGN SYSTEM
+- Atmosphere: Warm espresso dark workspace (#1F1E1C canvas, #282724 cards, #383632 borders) or ivory light mode (#FAF9F5 canvas, #FFFFFF cards, #E5E0D8 borders).
+- Palette: Signature terracotta (#D97757 primary, #E28767 hover, #B85A3F active), warm cream text (#EDEBE6 in dark, #1F1E1D in light), sand muted text (#9C988F in dark, #6B6860 in light).
+- Typography: Newsreader serif (Google Font) for display headlines, section titles, and editorial banners. Inter for UI controls, buttons, and system text.
+- Details: Claude.ai card aesthetic with rounded-2xl corners, 1px subtle warm borders, generous editorial whitespace, soft terracotta focus rings, and high-legibility layout.
+    `.trim(),
+  },
+  {
     id: "linear",
     name: "Linear",
     description: "Dark precision engineering, starlight borders, signature indigo-violet accent.",
@@ -176,25 +195,6 @@ DESIGN SYSTEM: MODERNIST
     `.trim(),
   },
   {
-    id: "claude-anthropic",
-    name: "Claude / Anthropic Design System",
-    description: "Warm terracotta tones, refined editorial typography, and human-centric conversational warmth.",
-    badge: "Anthropic Warm",
-    accentColor: "#d97706",
-    bgDark: true,
-    swatchColors: ["#1c1c1f", "#2b2b2f", "#d97706", "#fef3c7"],
-    owner: "Included",
-    updatedAt: "Built-in",
-    published: true,
-    promptGuidance: `
-DESIGN SYSTEM: CLAUDE / ANTHROPIC
-- Atmosphere: Warm dark workspace (#1c1c1f canvas, #262629 cards).
-- Palette: Deep charcoal, warm cream accents (#fef3c7), signature terracotta and amber (#d97706 / #ea580c).
-- Typography: Editorial serif headings paired with highly legible sans-serif for UI elements.
-- Details: Understated rounded cards (rounded-2xl), soft warm glows, thoughtful focus rings.
-    `.trim(),
-  },
-  {
     id: "dct-abu-dhabi",
     name: "DCT Abu Dhabi Design System",
     description: "Cultural heritage and luxury hospitality with warm desert terracotta and crisp accents.",
@@ -215,12 +215,12 @@ DESIGN SYSTEM: DCT ABU DHABI
   },
 ];
 
-const CUSTOM_SYSTEMS_KEY = "claude_design_custom_systems";
+const CUSTOM_SYSTEMS_KEY = "open_claude_design_custom_systems";
 
 export function loadCustomDesignSystems(): DesignSystem[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(CUSTOM_SYSTEMS_KEY);
+    const raw = localStorage.getItem(CUSTOM_SYSTEMS_KEY) || localStorage.getItem("claude_design_custom_systems");
     if (!raw) return [];
     return JSON.parse(raw);
   } catch {

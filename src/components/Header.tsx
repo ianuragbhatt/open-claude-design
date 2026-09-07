@@ -10,6 +10,8 @@ import {
   ChevronDown,
   FolderKanban,
   Trash2,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { getAllDesignSystems } from "@/lib/design-systems";
 import type { ApiSettings, Project } from "@/lib/storage";
@@ -18,6 +20,8 @@ interface HeaderProps {
   project: Project;
   allProjects: Project[];
   settings: ApiSettings;
+  theme?: "dark" | "light";
+  onToggleTheme?: () => void;
   onGoHome: () => void;
   onSelectBrand: (brandId: string) => void;
   onSelectProject: (projectId: string) => void;
@@ -31,6 +35,8 @@ export function Header({
   project,
   allProjects,
   settings,
+  theme = "dark",
+  onToggleTheme,
   onGoHome,
   onSelectBrand,
   onSelectProject,
@@ -64,21 +70,21 @@ export function Header({
     : "No model selected";
 
   return (
-    <header className="h-14 border-b border-white/10 bg-[#121316] px-4 flex items-center justify-between select-none z-20 shrink-0">
+    <header className="h-14 border-b border-border bg-surface px-4 flex items-center justify-between select-none z-20 shrink-0 text-foreground transition-colors">
       {/* Left: Brand logo, project title, & projects switcher */}
       <div className="flex items-center gap-3">
         <button
           onClick={onGoHome}
-          className="flex items-center gap-2 pr-3 border-r border-white/10 hover:opacity-80 transition-opacity text-left cursor-pointer group"
+          className="flex items-center gap-2 pr-3 border-r border-border hover:opacity-85 transition-opacity text-left cursor-pointer group"
           title="Back to Home"
         >
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-600 via-orange-500 to-amber-400 flex items-center justify-center shadow-lg shadow-orange-500/20 group-hover:scale-105 transition-transform">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#c96442] via-[#d97757] to-[#e28767] flex items-center justify-center shadow-md shadow-terracotta/20 group-hover:scale-105 transition-transform">
             <Sparkles className="w-4 h-4 text-white" />
           </div>
-          <span className="font-semibold text-sm tracking-tight text-white flex items-center gap-1.5">
-            Claude Design
-            <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-white/10 text-neutral-300">
-              Lite
+          <span className="font-editorial text-base font-medium tracking-tight text-foreground flex items-center gap-1.5">
+            Open Claude Design
+            <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-terracotta/15 text-terracotta">
+              Beta
             </span>
           </span>
         </button>
@@ -93,7 +99,7 @@ export function Header({
               onBlur={handleTitleSubmit}
               onKeyDown={(e) => e.key === "Enter" && handleTitleSubmit()}
               autoFocus
-              className="bg-white/5 border border-white/20 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-amber-500"
+              className="bg-surface-subtle border border-border rounded px-2 py-1 text-xs text-foreground focus:outline-none focus:border-terracotta"
             />
           ) : (
             <button
@@ -102,7 +108,7 @@ export function Header({
                 setIsEditingTitle(true);
               }}
               title="Click to rename design"
-              className="text-xs text-neutral-300 font-medium hover:text-white px-2 py-1 rounded hover:bg-white/5 transition-colors"
+              className="text-xs text-foreground font-medium hover:text-terracotta px-2 py-1 rounded hover:bg-surface-subtle transition-colors truncate max-w-[200px]"
             >
               {project.name}
             </button>
@@ -111,7 +117,7 @@ export function Header({
           {/* Switch Project Button */}
           <button
             onClick={() => setIsProjectsDropdownOpen(!isProjectsDropdownOpen)}
-            className="p-1 text-neutral-400 hover:text-white rounded hover:bg-white/5 transition-colors"
+            className="p-1 text-foreground-muted hover:text-foreground rounded hover:bg-surface-subtle transition-colors"
             title="Switch project"
           >
             <ChevronDown className="w-3.5 h-3.5" />
@@ -124,9 +130,9 @@ export function Header({
                 className="fixed inset-0 z-30"
                 onClick={() => setIsProjectsDropdownOpen(false)}
               />
-              <div className="absolute top-full mt-2 left-0 w-64 bg-[#18191d] border border-white/10 rounded-xl shadow-2xl p-2 z-40 text-xs">
-                <div className="text-[11px] font-semibold text-neutral-400 px-2 py-1 flex items-center gap-1.5 border-b border-white/5 mb-1">
-                  <FolderKanban className="w-3 h-3" />
+              <div className="absolute top-full mt-2 left-0 w-64 bg-surface border border-border rounded-xl shadow-2xl p-2 z-40 text-xs">
+                <div className="text-[11px] font-semibold text-foreground-muted px-2 py-1 flex items-center gap-1.5 border-b border-border mb-1">
+                  <FolderKanban className="w-3 h-3 text-terracotta" />
                   Your Saved Designs ({allProjects.length})
                 </div>
                 <div className="space-y-1 max-h-60 overflow-y-auto">
@@ -135,8 +141,8 @@ export function Header({
                       key={p.id}
                       className={`group flex items-center justify-between px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer ${
                         p.id === project.id
-                          ? "bg-white/10 text-white font-medium"
-                          : "text-neutral-300 hover:bg-white/5 hover:text-white"
+                          ? "bg-terracotta/15 text-terracotta font-medium"
+                          : "text-foreground hover:bg-surface-subtle"
                       }`}
                       onClick={() => {
                         onSelectProject(p.id);
@@ -145,7 +151,7 @@ export function Header({
                     >
                       <div className="truncate flex-1 mr-2">
                         <span className="truncate block">{p.name}</span>
-                        <span className="text-[10px] text-neutral-500 font-normal">
+                        <span className="text-[10px] text-foreground-muted font-normal">
                           {p.versions.length} versions
                         </span>
                       </div>
@@ -174,17 +180,17 @@ export function Header({
       <div className="relative">
         <button
           onClick={() => setIsBrandDropdownOpen(!isBrandDropdownOpen)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-medium text-neutral-200 transition-all hover:border-white/20"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-subtle hover:bg-surface border border-border text-xs font-medium text-foreground transition-all hover:border-terracotta/40 shadow-sm"
         >
           <span
-            className="w-2.5 h-2.5 rounded-full ring-2 ring-white/10"
+            className="w-2.5 h-2.5 rounded-full ring-2 ring-border"
             style={{ backgroundColor: currentBrand.accentColor }}
           />
           <span>{currentBrand.name}</span>
-          <span className="text-[10px] text-neutral-400 bg-white/5 px-1.5 py-0.2 rounded">
+          <span className="text-[10px] text-foreground-muted bg-surface px-1.5 py-0.5 rounded border border-border">
             {currentBrand.badge}
           </span>
-          <ChevronDown className="w-3.5 h-3.5 text-neutral-400" />
+          <ChevronDown className="w-3.5 h-3.5 text-foreground-muted" />
         </button>
 
         {isBrandDropdownOpen && (
@@ -193,9 +199,9 @@ export function Header({
               className="fixed inset-0 z-30"
               onClick={() => setIsBrandDropdownOpen(false)}
             />
-            <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-72 bg-[#18191d] border border-white/10 rounded-xl shadow-2xl p-2 z-40">
-              <div className="text-[11px] font-semibold text-neutral-400 px-2 py-1 flex items-center gap-1.5 border-b border-white/5 mb-1">
-                <Palette className="w-3 h-3" />
+            <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-72 bg-surface border border-border rounded-xl shadow-2xl p-2 z-40">
+              <div className="text-[11px] font-semibold text-foreground-muted px-2 py-1 flex items-center gap-1.5 border-b border-border mb-1">
+                <Palette className="w-3 h-3 text-terracotta" />
                 Select Design System (DESIGN.md)
               </div>
               <div className="space-y-1 max-h-80 overflow-y-auto">
@@ -208,27 +214,27 @@ export function Header({
                     }}
                     className={`w-full text-left px-2.5 py-2 rounded-lg flex items-start gap-2.5 transition-colors text-xs ${
                       brand.id === project.brandId
-                        ? "bg-white/10 text-white"
-                        : "text-neutral-300 hover:bg-white/5 hover:text-white"
+                        ? "bg-terracotta/15 text-foreground font-medium"
+                        : "text-foreground hover:bg-surface-subtle"
                     }`}
                   >
                     <span
-                      className="w-3 h-3 rounded-full mt-0.5 shrink-0 ring-1 ring-white/20"
+                      className="w-3 h-3 rounded-full mt-0.5 shrink-0 ring-1 ring-border"
                       style={{ backgroundColor: brand.accentColor }}
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between font-medium">
                         <span>{brand.name}</span>
-                        <span className="text-[10px] text-neutral-400 font-normal">
+                        <span className="text-[10px] text-foreground-muted font-normal">
                           {brand.badge}
                         </span>
                       </div>
-                      <p className="text-[11px] text-neutral-400 truncate mt-0.5">
+                      <p className="text-[11px] text-foreground-muted truncate mt-0.5">
                         {brand.description}
                       </p>
                     </div>
                     {brand.id === project.brandId && (
-                      <Check className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
+                      <Check className="w-3.5 h-3.5 text-terracotta mt-0.5 shrink-0" />
                     )}
                   </button>
                 ))}
@@ -241,15 +247,30 @@ export function Header({
       {/* Right: Actions */}
       <div className="flex items-center gap-2">
         {/* Model Badge */}
-        <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/5 border border-white/5 text-[11px] text-neutral-300">
+        <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-subtle border border-border text-[11px] text-foreground-muted">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="font-mono">{activeModelDisplay}</span>
+          <span className="font-mono text-foreground">{activeModelDisplay}</span>
         </div>
+
+        {/* Theme Toggle Button */}
+        {onToggleTheme && (
+          <button
+            onClick={onToggleTheme}
+            className="p-2 rounded-lg hover:bg-surface-subtle text-foreground-muted hover:text-foreground border border-transparent hover:border-border transition-colors"
+            title={theme === "dark" ? "Switch to Ivory Light mode" : "Switch to Warm Dark mode"}
+          >
+            {theme === "dark" ? (
+              <Sun className="w-4 h-4 text-[#e28767]" />
+            ) : (
+              <Moon className="w-4 h-4 text-foreground" />
+            )}
+          </button>
+        )}
 
         {/* New Design button */}
         <button
           onClick={onNewProject}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs transition-colors shadow-sm shadow-amber-500/20"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-terracotta hover:bg-terracotta-400 text-white font-medium text-xs transition-colors shadow-sm shadow-terracotta/20"
           title="Start fresh design"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -259,7 +280,7 @@ export function Header({
         {/* Settings button */}
         <button
           onClick={onOpenSettings}
-          className="p-1.5 rounded-lg hover:bg-white/10 text-neutral-300 hover:text-white transition-colors"
+          className="p-2 rounded-lg hover:bg-surface-subtle text-foreground-muted hover:text-foreground border border-transparent hover:border-border transition-colors"
           title="API Keys & Settings"
         >
           <Settings className="w-4 h-4" />

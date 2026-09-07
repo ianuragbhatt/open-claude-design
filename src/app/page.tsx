@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Header } from "@/components/Header";
 import { ChatPane } from "@/components/ChatPane";
 import { PreviewPane } from "@/components/PreviewPane";
 import { SettingsModal } from "@/components/SettingsModal";
@@ -23,7 +22,7 @@ import {
   DEFAULT_SETTINGS,
 } from "@/lib/storage";
 
-export default function ClaudeDesignStudio() {
+export default function OpenClaudeDesignStudio() {
   const [currentView, setCurrentView] = useState<"home" | "studio">("home");
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [project, setProject] = useState<Project | null>(null);
@@ -78,7 +77,7 @@ export default function ClaudeDesignStudio() {
   };
 
   const handleNewProject = () => {
-    const newProj = createNewProject("Untitled Design", project?.brandId || "linear");
+    const newProj = createNewProject("Untitled Design", project?.brandId || "claude-anthropic");
     const updatedList = [newProj, ...allProjects];
     setAllProjects(updatedList);
     saveProjects(updatedList);
@@ -270,10 +269,16 @@ export default function ClaudeDesignStudio() {
       if (err.name === "AbortError") {
         return;
       }
+      let friendlyError = err?.message || "Failed to generate design.";
+      if (friendlyError.includes("401") || friendlyError.includes("Unauthorized") || friendlyError.includes("API key")) {
+        friendlyError = "API key required or invalid. Please enter your provider key in Settings to start designing.";
+        setIsSettingsOpen(true);
+      }
+
       const errorMsg: Message = {
         id: "err_" + Math.random().toString(36).slice(2, 9),
         role: "assistant",
-        content: `⚠️ Error: ${err?.message || "Failed to generate design."}`,
+        content: `⚠️ ${friendlyError}`,
         timestamp: Date.now(),
       };
       updateProject({
@@ -281,15 +286,17 @@ export default function ClaudeDesignStudio() {
         messages: [...currentActiveProject.messages, userMessage, errorMsg],
         updatedAt: Date.now(),
       });
-
-      // If missing API key, trigger Settings modal automatically
-      if (err?.message?.includes("API Key is required")) {
-        setIsSettingsOpen(true);
-      }
     } finally {
       setIsLoading(false);
       abortControllerRef.current = null;
     }
+  };
+
+  const handleToggleTheme = () => {
+    const nextTheme: "dark" | "light" = settings.theme === "dark" ? "light" : "dark";
+    const updated = { ...settings, theme: nextTheme };
+    setSettings(updated);
+    saveSettings(updated);
   };
 
   const handleHomeSubmitPrompt = (promptText: string, brandId: string) => {
@@ -312,19 +319,21 @@ export default function ClaudeDesignStudio() {
 
   if (!project) {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-[#0d0e11] text-neutral-400">
-        <div className="w-6 h-6 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+      <div className="w-full h-full flex items-center justify-center bg-background text-foreground-muted">
+        <div className="w-6 h-6 border-2 border-terracotta/20 border-t-terracotta rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full flex flex-col bg-[#0d0e11] overflow-hidden">
+    <div className="w-full h-full flex flex-col bg-background text-foreground overflow-hidden">
       {currentView === "home" ? (
         <HomeView
           projects={allProjects}
           activeProject={project}
           settings={settings}
+          theme={settings.theme}
+          onToggleTheme={handleToggleTheme}
           onUpdateSettings={(newSettings) => {
             setSettings(newSettings);
             saveSettings(newSettings);
@@ -342,50 +351,47 @@ export default function ClaudeDesignStudio() {
           onSubmitPrompt={handleHomeSubmitPrompt}
         />
       ) : (
-        <>
-          {/* Top Studio Header */}
-          <Header
+        <div className="w-full h-full flex overflow-hidden">
+          {/* Left: Chat Pane with its own header, unboxed stream, and in-composer design system selector */}
+          <ChatPane
             project={project}
             allProjects={allProjects}
-            settings={settings}
-            onGoHome={() => setCurrentView("home")}
-            onSelectBrand={handleSelectBrand}
             onSelectProject={handleSelectProject}
-            onDeleteProject={handleDeleteProject}
             onNewProject={handleNewProject}
-            onOpenSettings={() => setIsSettingsOpen(true)}
             onRenameProject={handleRenameProject}
+            onDeleteProject={handleDeleteProject}
+            onGoHome={() => setCurrentView("home")}
+            brandId={project.brandId}
+            onSelectBrand={handleSelectBrand}
+            customBrand={project.customBrand}
+            messages={project.messages}
+            isLoading={isLoading}
+            onSendMessage={(content) => handleSendMessage(content)}
+            onStopGeneration={handleStopGeneration}
+            selectedElement={selectedElement}
+            onClearSelectedElement={() => setSelectedElement(null)}
+            settings={settings}
+            onUpdateSettings={(newSettings) => {
+              setSettings(newSettings);
+              saveSettings(newSettings);
+            }}
+            onOpenSettings={() => setIsSettingsOpen(true)}
           />
 
-          {/* Main Studio 2-Pane Splitter */}
-          <div className="flex-1 flex overflow-hidden">
-            {/* Left: Chat Pane */}
-            <ChatPane
-              messages={project.messages}
-              isLoading={isLoading}
-              onSendMessage={(content) => handleSendMessage(content)}
-              onStopGeneration={handleStopGeneration}
-              selectedElement={selectedElement}
-              onClearSelectedElement={() => setSelectedElement(null)}
-              settings={settings}
-              onUpdateSettings={(newSettings) => {
-                setSettings(newSettings);
-                saveSettings(newSettings);
-              }}
-              onOpenSettings={() => setIsSettingsOpen(true)}
-            />
-
-            {/* Right: Live Canvas Preview Pane */}
-            <PreviewPane
-              currentHtml={streamingHtml}
-              versions={project.versions}
-              activeVersionIndex={project.activeVersionIndex}
-              onSelectVersion={handleSelectVersion}
-              onSelectElement={(info) => setSelectedElement(info)}
-              isLoading={isLoading}
-            />
-          </div>
-        </>
+          {/* Right: Live Canvas Preview Pane with Claude Design command ribbon */}
+          <PreviewPane
+            projectName={project.name}
+            currentHtml={streamingHtml}
+            versions={project.versions}
+            activeVersionIndex={project.activeVersionIndex}
+            onSelectVersion={handleSelectVersion}
+            onSelectElement={(info) => setSelectedElement(info)}
+            isLoading={isLoading}
+            theme={settings.theme}
+            onToggleTheme={handleToggleTheme}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+          />
+        </div>
       )}
 
       {/* Settings Modal (Global) */}

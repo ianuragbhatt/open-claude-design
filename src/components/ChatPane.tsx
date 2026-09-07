@@ -2,20 +2,37 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import {
-  Send,
   Sparkles,
   X,
   Target,
   ChevronDown,
   StopCircle,
   Plus,
-  Radio,
+  Palette,
+  Check,
+  LayoutGrid,
+  Pencil,
+  Play,
+  SquarePen,
+  Wand2,
 } from "lucide-react";
 import { QuestionFormView } from "./QuestionFormView";
 import { ModelPickerPopover } from "./ModelPickerPopover";
-import type { Message, ApiSettings } from "@/lib/storage";
+import { getAllDesignSystems, type DesignSystem } from "@/lib/design-systems";
+import type { Message, ApiSettings, Project } from "@/lib/storage";
+import { formatModelName, formatElementName } from "@/lib/formatters";
 
 interface ChatPaneProps {
+  project: Project;
+  allProjects: Project[];
+  onSelectProject: (projectId: string) => void;
+  onNewProject: () => void;
+  onRenameProject: (newName: string) => void;
+  onDeleteProject?: (projectId: string) => void;
+  onGoHome: () => void;
+  brandId: string;
+  onSelectBrand: (brandId: string) => void;
+  customBrand?: string;
   messages: Message[];
   isLoading: boolean;
   onSendMessage: (content: string) => void;
@@ -28,13 +45,29 @@ interface ChatPaneProps {
 }
 
 const STARTER_PROMPTS = [
-  "Fintech mobile dashboard with balance cards, transaction history, and send money modal",
-  "Dark-mode SaaS landing page with animated hero, bento feature grid, and pricing table",
-  "Clean photography editorial portfolio with gallery grid and minimalist typography",
-  "DevOps mission control dashboard with server health metrics and live logs panel",
+  "Mobile banking app with card balance, quick transfers, and expense breakdown",
+  "Editorial magazine reader with serif typography, featured stories, and newsletter",
+  "Creative agency portfolio with interactive project grid and case study preview",
+  "Modern SaaS analytics dashboard with revenue charts, active user stats, and filter tabs",
+];
+
+const QUICK_REVISIONS = [
+  "Make this layout mobile responsive with a clean drawer menu",
+  "Add an interactive dark / light theme toggle",
+  "Add customer testimonials with star ratings and avatar stack",
+  "Improve typography contrast and generous whitespace",
+  "Add interactive tabs and live search filtering",
 ];
 
 export function ChatPane({
+  project,
+  allProjects,
+  onSelectProject,
+  onNewProject,
+  onRenameProject,
+  onGoHome,
+  brandId,
+  onSelectBrand,
   messages,
   isLoading,
   onSendMessage,
@@ -48,9 +81,21 @@ export function ChatPane({
   const [input, setInput] = useState("");
   const [isModelPickerOpen, setIsModelPickerOpen] = useState(false);
   const [isRefreshingModels, setIsRefreshingModels] = useState(false);
+  const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
+  const [isBrandMenuOpen, setIsBrandMenuOpen] = useState(false);
+  const [isQuickIdeasOpen, setIsQuickIdeasOpen] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState(project.name);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const allBrands = getAllDesignSystems();
+  const currentBrand = allBrands.find((b) => b.id === brandId) || allBrands[0];
+
+  useEffect(() => {
+    setEditedTitle(project.name);
+  }, [project.name]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -99,26 +144,148 @@ export function ChatPane({
     }
   };
 
-  // Friendly label for the active model
-  const activeModelDisplay = settings.selectedModel
-    ? settings.selectedModel
-        .replace(/^accounts\/[^\/]+\/models\//, "")
-        .replace(/^anthropic\//, "")
-        .replace(/^openai\//, "")
-    : "Select model";
+  const modelInfo = formatModelName(settings.selectedModel);
+  const friendlyElementName = selectedElement
+    ? formatElementName(selectedElement.elementName, selectedElement.textSnippet)
+    : "";
 
   return (
-    <div className="w-[420px] max-w-[45vw] h-full border-r border-white/10 bg-[#101114] flex flex-col shrink-0 select-none">
+    <div className="w-[420px] max-w-[45vw] h-full border-r border-border bg-surface flex flex-col shrink-0 select-none text-foreground transition-colors">
+      {/* Top Left Header */}
+      <div className="h-12 px-4 border-b border-border bg-surface flex items-center justify-between shrink-0 select-none">
+        <div className="flex items-center gap-2 min-w-0 relative">
+          <button
+            onClick={onGoHome}
+            className="w-7 h-7 rounded-lg bg-surface-subtle border border-border/80 flex items-center justify-center text-terracotta hover:border-terracotta/40 transition-colors shrink-0 shadow-2xs"
+            title="All designs gallery"
+          >
+            <Sparkles className="w-3.5 h-3.5 fill-terracotta/20 text-terracotta" />
+          </button>
+
+          {/* Project Title Dropdown */}
+          <div className="relative min-w-0">
+            {isEditingTitle ? (
+              <input
+                type="text"
+                value={editedTitle}
+                onChange={(e) => setEditedTitle(e.target.value)}
+                onBlur={() => {
+                  if (editedTitle.trim() && editedTitle !== project.name) {
+                    onRenameProject(editedTitle.trim());
+                  }
+                  setIsEditingTitle(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    if (editedTitle.trim() && editedTitle !== project.name) {
+                      onRenameProject(editedTitle.trim());
+                    }
+                    setIsEditingTitle(false);
+                  } else if (e.key === "Escape") {
+                    setEditedTitle(project.name);
+                    setIsEditingTitle(false);
+                  }
+                }}
+                autoFocus
+                className="bg-surface-subtle border border-terracotta rounded px-2 py-0.5 text-xs text-foreground font-medium focus:outline-none"
+              />
+            ) : (
+              <button
+                onClick={() => setIsProjectMenuOpen(!isProjectMenuOpen)}
+                className="flex items-center gap-1 text-[13px] font-medium text-foreground hover:text-terracotta transition-colors truncate max-w-[190px] py-1 px-1.5 rounded-md hover:bg-surface-subtle"
+                title="Switch or rename design"
+              >
+                <span className="truncate">{project.name}</span>
+                <ChevronDown className="w-3 h-3 text-foreground-muted opacity-70 shrink-0" />
+              </button>
+            )}
+
+            {/* Project Picker Dropdown */}
+            {isProjectMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsProjectMenuOpen(false)} />
+                <div className="absolute top-full left-0 mt-1 w-64 bg-surface border border-border rounded-xl shadow-xl p-1.5 z-50 text-xs animate-in fade-in zoom-in-95 duration-100">
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted px-2.5 py-1">
+                    Saved Designs
+                  </div>
+                  <div className="max-h-56 overflow-y-auto space-y-0.5 py-1">
+                    {allProjects.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => {
+                          onSelectProject(p.id);
+                          setIsProjectMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 transition-colors ${
+                          p.id === project.id
+                            ? "bg-surface-subtle text-foreground font-medium"
+                            : "text-foreground-muted hover:text-foreground hover:bg-surface-subtle"
+                        }`}
+                      >
+                        <span className="truncate">{p.name}</span>
+                        {p.id === project.id && <Check className="w-3.5 h-3.5 text-terracotta shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="border-t border-border mt-1 pt-1 space-y-0.5">
+                    <button
+                      onClick={() => {
+                        setIsEditingTitle(true);
+                        setIsProjectMenuOpen(false);
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-subtle flex items-center gap-2"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      <span>Rename Design</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        onNewProject();
+                        setIsProjectMenuOpen(false);
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-subtle flex items-center gap-2"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>New Design</span>
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Right Header icons: Home Gallery / New Session */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onGoHome}
+            className="w-8 h-8 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-subtle flex items-center justify-center transition-colors"
+            title="All designs and styles"
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onNewProject}
+            className="w-8 h-8 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-subtle flex items-center justify-center transition-colors"
+            title="Start fresh design"
+          >
+            <SquarePen className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
       {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 select-text text-xs">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 select-text text-xs">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col justify-center text-center px-4 py-8">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto mb-3 shadow-inner">
+            <div className="w-11 h-11 rounded-2xl bg-terracotta/10 border border-terracotta/20 text-terracotta flex items-center justify-center mx-auto mb-3 shadow-inner">
               <Sparkles className="w-5 h-5" />
             </div>
-            <h2 className="text-sm font-semibold text-white mb-1">What would you like to design?</h2>
-            <p className="text-neutral-400 text-xs mb-6 max-w-xs mx-auto">
-              Describe your interface idea or pick an architectural starter below.
+            <h2 className="font-editorial text-lg font-medium text-foreground mb-1">
+              What would you like to design?
+            </h2>
+            <p className="text-foreground-muted text-xs mb-6 max-w-xs mx-auto leading-relaxed">
+              Describe your interface idea or click an inspiration starter below.
             </p>
 
             {/* Quick Starters */}
@@ -127,9 +294,9 @@ export function ChatPane({
                 <button
                   key={i}
                   onClick={() => onSendMessage(starter)}
-                  className="w-full text-left p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 text-neutral-300 hover:text-white transition-all text-[11px] leading-relaxed block group"
+                  className="w-full text-left p-3 rounded-xl bg-surface-subtle hover:bg-surface border border-border text-foreground-muted hover:text-foreground transition-all text-xs leading-relaxed block group hover:border-terracotta/40 shadow-xs"
                 >
-                  <span className="text-neutral-500 group-hover:text-amber-400 mr-1.5 font-mono">
+                  <span className="text-foreground-muted group-hover:text-terracotta mr-2 font-mono text-[11px]">
                     0{i + 1}
                   </span>
                   {starter}
@@ -139,76 +306,115 @@ export function ChatPane({
           </div>
         ) : (
           messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex flex-col ${
-                msg.role === "user" ? "items-end" : "items-start"
-              }`}
-            >
-              <div
-                className={`max-w-[90%] rounded-2xl px-3.5 py-2.5 leading-relaxed ${
-                  msg.role === "user"
-                    ? "bg-amber-500 text-black font-medium shadow-md shadow-amber-500/10"
-                    : "bg-[#18191e] border border-white/10 text-neutral-200"
-                }`}
-              >
-                <div className="whitespace-pre-wrap">{msg.content}</div>
+            <div key={msg.id} className="py-1.5">
+              {msg.role === "user" ? (
+                <div className="flex justify-end mb-1">
+                  <div className="max-w-[92%] rounded-2xl px-4 py-2.5 bg-surface-subtle border border-border/80 text-foreground text-xs leading-relaxed shadow-xs">
+                    <div className="whitespace-pre-wrap">{msg.content}</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-foreground/90 text-xs leading-relaxed space-y-2 select-text font-sans">
+                  <div className="whitespace-pre-wrap font-normal">{msg.content}</div>
 
-                {msg.questionForm && (
-                  <QuestionFormView
-                    form={msg.questionForm}
-                    onSelectOption={(label) => onSendMessage(label)}
-                    onSkip={() => onSendMessage("Proceed with the most modern recommendation")}
-                  />
-                )}
-              </div>
-              <span className="text-[10px] text-neutral-500 mt-1 px-1">
-                {new Date(msg.timestamp).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
+                  {msg.questionForm && (
+                    <QuestionFormView
+                      form={msg.questionForm}
+                      onSelectOption={(label) => onSendMessage(label)}
+                      onSkip={() => onSendMessage("Proceed with the most modern recommendation")}
+                    />
+                  )}
+                </div>
+              )}
             </div>
           ))
         )}
 
         {isLoading && (
-          <div className="flex items-center gap-2 text-xs text-neutral-400 bg-white/5 border border-white/5 rounded-2xl px-3.5 py-2.5 max-w-[80%]">
-            <div className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-            <span>Generating interface design...</span>
+          <div className="flex items-center gap-2 text-xs text-foreground-muted py-2 px-1">
+            <div className="w-2 h-2 rounded-full bg-terracotta animate-ping" />
+            <span>Crafting your interface design...</span>
           </div>
         )}
 
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Composer Input Area */}
-      <div className="p-3 border-t border-white/10 bg-[#141519]">
-        {/* Selected Element Pin Badge */}
-        {selectedElement && (
-          <div className="mb-2 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] flex items-center justify-between">
-            <div className="flex items-center gap-1.5 truncate">
-              <Target className="w-3 h-3 text-amber-400 shrink-0" />
-              <span className="font-semibold">Target:</span>
-              <span className="font-mono truncate">{selectedElement.elementName}</span>
-              {selectedElement.textSnippet && (
-                <span className="text-neutral-400 truncate max-w-[140px]">
-                  ("{selectedElement.textSnippet}")
-                </span>
-              )}
-            </div>
+      {/* Composer Area */}
+      <div className="p-3 border-t border-border bg-surface flex flex-col gap-2">
+        {/* Top Composer Row: Brand Style link & Selected Target Pin */}
+        <div className="flex items-center justify-between text-xs px-1">
+          {/* Brand Style Dropdown */}
+          <div className="relative">
             <button
-              onClick={onClearSelectedElement}
-              className="p-0.5 hover:bg-amber-500/20 rounded text-neutral-400 hover:text-white"
-              title="Clear target selection"
+              type="button"
+              onClick={() => setIsBrandMenuOpen(!isBrandMenuOpen)}
+              className="flex items-center gap-1.5 text-[11px] text-foreground-muted hover:text-foreground transition-colors font-medium group"
+              title="Change active brand style"
             >
-              <X className="w-3 h-3" />
+              <Palette className="w-3 h-3 text-terracotta" />
+              <span className="truncate max-w-[200px]">{currentBrand.name}</span>
+              <ChevronDown className="w-3 h-3 text-foreground-muted group-hover:text-foreground" />
             </button>
-          </div>
-        )}
 
-        {/* Text Input Box */}
-        <div className="relative flex flex-col bg-[#1c1d22] border border-white/10 rounded-2xl p-2.5 focus-within:border-amber-500/50 transition-colors">
+            {isBrandMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsBrandMenuOpen(false)} />
+                <div className="absolute bottom-full mb-2 left-0 w-72 bg-surface border border-border rounded-xl shadow-2xl p-2 z-50 text-xs animate-in fade-in zoom-in-95 duration-100">
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted px-2 py-1 mb-1 border-b border-border">
+                    Select Brand Style
+                  </div>
+                  <div className="max-h-60 overflow-y-auto space-y-1">
+                    {allBrands.map((b) => (
+                      <button
+                        key={b.id}
+                        type="button"
+                        onClick={() => {
+                          onSelectBrand(b.id);
+                          setIsBrandMenuOpen(false);
+                        }}
+                        className={`w-full text-left p-2 rounded-lg flex items-center justify-between transition-colors ${
+                          b.id === brandId
+                            ? "bg-surface-subtle text-foreground font-medium"
+                            : "text-foreground-muted hover:text-foreground hover:bg-surface-subtle"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: b.accentColor }}
+                          />
+                          <span className="truncate">{b.name}</span>
+                        </div>
+                        {b.id === brandId && (
+                          <Check className="w-3.5 h-3.5 text-terracotta shrink-0" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Selected Element Pin Badge */}
+          {selectedElement && (
+            <div className="px-2.5 py-0.5 rounded-md bg-terracotta/10 border border-terracotta/30 text-terracotta text-[10px] flex items-center gap-1.5">
+              <Target className="w-2.5 h-2.5 text-terracotta shrink-0" />
+              <span className="font-medium truncate max-w-[140px]">{friendlyElementName}</span>
+              <button
+                onClick={onClearSelectedElement}
+                className="hover:text-foreground ml-1"
+                title="Deselect section"
+              >
+                <X className="w-2.5 h-2.5" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Input Box */}
+        <div className="relative flex flex-col bg-surface-subtle border border-border rounded-2xl p-2.5 focus-within:border-terracotta transition-colors shadow-xs">
           <textarea
             ref={textareaRef}
             rows={2}
@@ -217,58 +423,76 @@ export function ChatPane({
             onKeyDown={handleKeyDown}
             placeholder={
               selectedElement
-                ? `What would you like to change in "${selectedElement.elementName}"?`
-                : "Describe what to build or modify..."
+                ? `What changes would you like to make to ${friendlyElementName}?`
+                : "Describe changes, new features, or refinements..."
             }
-            className="w-full bg-transparent text-xs text-white placeholder-neutral-500 focus:outline-none resize-none leading-relaxed"
+            className="w-full bg-transparent text-xs text-foreground placeholder-foreground-muted/60 focus:outline-none resize-none leading-relaxed"
           />
 
-          {/* Bottom Bar: Action buttons & Model selector pill */}
-          <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/5">
-            {/* Left Actions & Model Selector Pill */}
+          {/* Bottom Bar */}
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
+            {/* Left: Quick Ideas & Model Selector Pill */}
             <div className="flex items-center gap-1.5 relative">
-              <button
-                type="button"
-                onClick={() => alert("Upload references or context")}
-                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition-colors"
-                title="Add reference file or context"
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </button>
+              {/* Quick Ideas Popover Button */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsQuickIdeasOpen(!isQuickIdeasOpen)}
+                  className="p-1.5 rounded-lg bg-surface hover:bg-surface-subtle border border-border text-foreground-muted hover:text-foreground transition-colors"
+                  title="Quick design enhancements"
+                >
+                  <Wand2 className="w-3.5 h-3.5" />
+                </button>
 
-              <button
-                type="button"
-                onClick={() => alert("Voice dictation input")}
-                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition-colors"
-                title="Voice input"
-              >
-                <Radio className="w-3.5 h-3.5" />
-              </button>
+                {isQuickIdeasOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setIsQuickIdeasOpen(false)}
+                    />
+                    <div className="absolute bottom-full mb-2 left-0 w-72 bg-surface border border-border rounded-xl shadow-2xl p-2 z-50 text-xs animate-in fade-in zoom-in-95 duration-100">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-foreground-muted px-2 py-1 mb-1 border-b border-border">
+                        Quick Enhancements
+                      </div>
+                      <div className="space-y-1">
+                        {QUICK_REVISIONS.map((item, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setInput((prev) => (prev ? `${prev}. ${item}` : item));
+                              setIsQuickIdeasOpen(false);
+                              textareaRef.current?.focus();
+                            }}
+                            className="w-full text-left p-2 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-subtle text-xs transition-colors"
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
 
-              {/* Model Picker Pill (Just like screenshot!) */}
+              {/* Model Picker Pill */}
               <button
                 type="button"
                 onClick={() => setIsModelPickerOpen(!isModelPickerOpen)}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors border ${
                   settings.selectedModel
-                    ? "bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border-white/5"
-                    : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/30"
+                    ? "bg-surface hover:bg-surface-subtle text-foreground border-border"
+                    : "bg-terracotta/10 hover:bg-terracotta/20 text-terracotta border-terracotta/30"
                 }`}
-                title="Select model and reasoning effort"
+                title="Select model and thinking depth"
               >
                 {!settings.selectedModel && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-terracotta animate-pulse" />
                 )}
-                <span className="truncate max-w-[120px]">{activeModelDisplay}</span>
-                {settings.selectedModel && (
-                  <span className="text-neutral-500 capitalize text-[10px]">
-                    {settings.reasoningEffort || "Medium"}
-                  </span>
-                )}
-                <ChevronDown className="w-3 h-3 text-neutral-400" />
+                <span className="truncate max-w-[130px]">{modelInfo.displayName}</span>
+                <ChevronDown className="w-3 h-3 text-foreground-muted" />
               </button>
 
-              {/* Model Picker Popover */}
               <ModelPickerPopover
                 isOpen={isModelPickerOpen}
                 onClose={() => setIsModelPickerOpen(false)}
@@ -287,30 +511,26 @@ export function ChatPane({
                 <button
                   type="button"
                   onClick={onStopGeneration}
-                  className="p-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors flex items-center gap-1 text-xs"
-                  title="Stop generation"
+                  className="px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 font-medium text-xs transition-colors flex items-center gap-1.5"
+                  title="Stop generating"
                 >
-                  <StopCircle className="w-4 h-4" />
+                  <StopCircle className="w-3.5 h-3.5" />
+                  <span>Stop</span>
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={() => handleSubmit()}
                   disabled={!input.trim()}
-                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-500 hover:from-amber-500 hover:to-orange-400 disabled:opacity-30 text-white font-medium text-xs transition-all shadow-md shadow-orange-500/20 flex items-center gap-1.5"
-                  title="Send prompt (Enter)"
+                  className="px-3.5 py-1.5 rounded-xl bg-terracotta hover:bg-terracotta-hover disabled:opacity-35 text-white font-medium text-xs transition-all shadow-sm flex items-center gap-1.5"
+                  title="Send (Enter)"
                 >
-                  <Send className="w-3.5 h-3.5" />
+                  <Play className="w-3 h-3 fill-current" />
                   <span>Send</span>
                 </button>
               )}
             </div>
           </div>
-        </div>
-
-        <div className="flex items-center justify-between text-[10px] text-neutral-500 mt-1.5 px-1">
-          <span>Shift+Enter for newline</span>
-          <span>OpenAI-compatible unified API</span>
         </div>
       </div>
     </div>
