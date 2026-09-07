@@ -826,7 +826,7 @@ export function HomeView({
           <div className="flex items-center gap-1.5 flex-wrap justify-center sm:justify-start">
             <span>Inspired by</span>
             <a
-              href="https://claude.ai"
+              href="https://claude.ai/design"
               target="_blank"
               rel="noreferrer"
               className="text-neutral-400 hover:text-white underline underline-offset-2 transition-colors"
