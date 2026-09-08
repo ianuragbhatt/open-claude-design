@@ -54,7 +54,7 @@ export async function GET(
 
     // If serving HTML, inject the interactive bridge before closing body or head
     if (ext === ".html" || ext === ".htm") {
-      const bridgeTag = `<script>\n${IFRAME_BRIDGE_SCRIPT}\n</script>`;
+      const bridgeTag = IFRAME_BRIDGE_SCRIPT;
       if (content.includes("</body>")) {
         content = content.replace("</body>", `${bridgeTag}\n</body>`);
       } else if (content.includes("</html>")) {

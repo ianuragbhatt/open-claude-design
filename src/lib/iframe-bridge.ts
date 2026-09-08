@@ -8,29 +8,55 @@ export const IFRAME_BRIDGE_SCRIPT = `
   var style = document.createElement('style');
   style.id = 'khayal-bridge-styles';
   style.textContent = \`
+    body.khayal-inspect-active, body.khayal-inspect-active * {
+      cursor: crosshair !important;
+    }
     .khayal-inspect-hover {
       outline: 2px solid #d97757 !important;
       outline-offset: -2px !important;
-      cursor: crosshair !important;
-      background-color: rgba(217, 119, 87, 0.12) !important;
+      background-color: rgba(217, 119, 87, 0.14) !important;
       transition: outline 0.1s ease, background-color 0.1s ease !important;
     }
     .khayal-inspect-selected {
       outline: 2px solid #d97757 !important;
       outline-offset: -2px !important;
-      background-color: rgba(217, 119, 87, 0.18) !important;
-      box-shadow: 0 0 0 4px rgba(217, 119, 87, 0.25) !important;
+      background-color: rgba(217, 119, 87, 0.22) !important;
+      box-shadow: 0 0 0 4px rgba(217, 119, 87, 0.3) !important;
     }
   \`;
   document.head.appendChild(style);
+
+  function resolveTargetElement(el) {
+    if (!el || el === document.body || el === document.documentElement) return null;
+    var curr = el;
+    while (curr && curr !== document.body && curr !== document.documentElement) {
+      if (curr.getAttribute && (curr.getAttribute('data-khayal-element') || curr.getAttribute('data-cd-element') || curr.id)) {
+        return curr;
+      }
+      var tag = curr.tagName.toLowerCase();
+      if (['button', 'a', 'header', 'nav', 'section', 'aside', 'main', 'footer', 'form', 'article'].indexOf(tag) !== -1) {
+        return curr;
+      }
+      if (curr.classList && (curr.classList.contains('card') || curr.classList.contains('vault-card') || curr.classList.contains('budget-card') || curr.classList.contains('btn'))) {
+        return curr;
+      }
+      curr = curr.parentElement;
+    }
+    return el;
+  }
 
   window.addEventListener('message', function(e) {
     if (!e.data || typeof e.data !== 'object') return;
     if (e.data.type === 'SET_MODE') {
       mode = e.data.mode;
-      if (mode === 'interact' && hoveredEl) {
-        hoveredEl.classList.remove('khayal-inspect-hover');
-        hoveredEl = null;
+      if (mode === 'inspect') {
+        document.body.classList.add('khayal-inspect-active');
+      } else {
+        document.body.classList.remove('khayal-inspect-active');
+        if (hoveredEl) {
+          hoveredEl.classList.remove('khayal-inspect-hover');
+          hoveredEl = null;
+        }
       }
     } else if (e.data.type === 'CLEAR_SELECTION') {
       if (selectedEl) {
@@ -52,7 +78,8 @@ export const IFRAME_BRIDGE_SCRIPT = `
 
   document.addEventListener('mouseover', function(e) {
     if (mode !== 'inspect') return;
-    var target = e.target;
+    var raw = e.target;
+    var target = resolveTargetElement(raw) || raw;
     if (!target || target === document.body || target === document.documentElement) return;
     if (hoveredEl && hoveredEl !== target) {
       hoveredEl.classList.remove('khayal-inspect-hover');
@@ -63,7 +90,8 @@ export const IFRAME_BRIDGE_SCRIPT = `
 
   document.addEventListener('mouseout', function(e) {
     if (mode !== 'inspect') return;
-    var target = e.target;
+    var raw = e.target;
+    var target = resolveTargetElement(raw) || raw;
     if (target && target.classList) {
       target.classList.remove('khayal-inspect-hover');
     }
@@ -74,8 +102,10 @@ export const IFRAME_BRIDGE_SCRIPT = `
     e.preventDefault();
     e.stopPropagation();
 
-    var target = e.target;
-    if (!target) return;
+    var raw = e.target;
+    if (!raw) return;
+    var target = resolveTargetElement(raw) || raw;
+    if (!target || target === document.body || target === document.documentElement) return;
 
     if (selectedEl && selectedEl !== target) {
       selectedEl.classList.remove('khayal-inspect-selected');

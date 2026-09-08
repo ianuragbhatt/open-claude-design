@@ -121,6 +121,13 @@ export function PreviewFrame({
         title="Prototype Preview"
         sandbox="allow-scripts allow-modals allow-same-origin allow-forms"
         className="w-full h-full border-none"
+        onLoad={() => {
+          setBridgeReady(true);
+          iframeRef.current?.contentWindow?.postMessage({ type: "SET_MODE", mode }, "*");
+          if (theme) {
+            iframeRef.current?.contentWindow?.postMessage({ type: "SET_THEME", theme }, "*");
+          }
+        }}
       />
     </div>
   );
