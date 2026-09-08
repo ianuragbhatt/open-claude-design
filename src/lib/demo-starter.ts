@@ -20,7 +20,7 @@ export const DEMO_PROJECT_HTML = `<!DOCTYPE html>
 <body class="bg-[#1c1c1f] text-[#edebe6] min-h-screen terracotta-glow antialiased selection:bg-[#d97757]/30 selection:text-white">
   
   <!-- Navigation Header -->
-  <nav data-cd-element="navigation-bar" class="h-16 border-b border-[#383632] bg-[#1c1c1f]/90 backdrop-blur-md sticky top-0 z-40 px-6 flex items-center justify-between">
+  <nav data-khayal-element="navigation-bar" class="h-16 border-b border-[#383632] bg-[#1c1c1f]/90 backdrop-blur-md sticky top-0 z-40 px-6 flex items-center justify-between">
     <div class="flex items-center gap-6">
       <div class="flex items-center gap-2.5">
         <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#c96442] via-[#d97757] to-[#e28767] flex items-center justify-center shadow-lg shadow-[#d97757]/20">
@@ -42,7 +42,7 @@ export const DEMO_PROJECT_HTML = `<!DOCTYPE html>
         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
         <span class="text-white font-medium">Cluster Alpha</span>
       </div>
-      <button onclick="toggleModal()" data-cd-element="new-synthesis-cta" class="px-3.5 py-1.5 rounded-lg bg-[#d97757] hover:bg-[#e28767] text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-[#d97757]/20">
+      <button onclick="toggleModal()" data-khayal-element="new-synthesis-cta" class="px-3.5 py-1.5 rounded-lg bg-[#d97757] hover:bg-[#e28767] text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-[#d97757]/20">
         <i data-lucide="plus" class="w-3.5 h-3.5"></i>
         <span>New Synthesis</span>
       </button>
@@ -53,7 +53,7 @@ export const DEMO_PROJECT_HTML = `<!DOCTYPE html>
   <main class="max-w-6xl mx-auto px-6 py-8 space-y-8">
     
     <!-- Hero Header -->
-    <header data-cd-element="hero-header" class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#383632]">
+    <header data-khayal-element="hero-header" class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#383632]">
       <div>
         <div class="flex items-center gap-2 mb-2">
           <span class="text-[11px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-md bg-[#d97757]/15 text-[#e28767] border border-[#d97757]/30">
@@ -82,7 +82,7 @@ export const DEMO_PROJECT_HTML = `<!DOCTYPE html>
     </header>
 
     <!-- Metrics Bento Row -->
-    <section data-cd-element="metrics-bento" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <section data-khayal-element="metrics-bento" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="p-5 rounded-2xl bg-[#282724] border border-[#383632] hover:border-[#d97757]/40 transition-colors">
         <div class="flex items-center justify-between text-[#9c988f] text-xs mb-3">
           <span>Active Monosemantic Features</span>
@@ -136,7 +136,7 @@ export const DEMO_PROJECT_HTML = `<!DOCTYPE html>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
       <!-- Feature Steering Interactive Card -->
-      <section data-cd-element="feature-steering-panel" class="lg:col-span-2 p-6 rounded-2xl bg-[#282724] border border-[#383632] space-y-6">
+      <section data-khayal-element="feature-steering-panel" class="lg:col-span-2 p-6 rounded-2xl bg-[#282724] border border-[#383632] space-y-6">
         <div class="flex items-center justify-between">
           <div>
             <h2 class="font-editorial text-xl font-medium text-white">Interactive Feature Activation</h2>
@@ -189,7 +189,7 @@ export const DEMO_PROJECT_HTML = `<!DOCTYPE html>
       </section>
 
       <!-- Recent Research Syntheses -->
-      <section data-cd-element="syntheses-sidebar" class="p-6 rounded-2xl bg-[#282724] border border-[#383632] flex flex-col justify-between">
+      <section data-khayal-element="syntheses-sidebar" class="p-6 rounded-2xl bg-[#282724] border border-[#383632] flex flex-col justify-between">
         <div>
           <div class="flex items-center justify-between mb-4">
             <h2 class="font-editorial text-lg font-medium text-white">Recent Syntheses</h2>

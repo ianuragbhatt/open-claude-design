@@ -22,8 +22,12 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Open Claude Design — Lean Agentic UI Designer",
-  description: "The fast, clean, open-source Claude Design alternative with live canvas preview, DESIGN.md brand contracts, and unified BYOK LLM support.",
+  title: "Khayal — AI UI Designer",
+  description: "The fast, clean, open-source AI designer with live canvas preview, DESIGN.md brand contracts, and unified BYOK LLM support.",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
@@ -38,7 +42,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                const saved = localStorage.getItem('open_claude_design_theme');
+                const saved = localStorage.getItem('khayal_theme') || localStorage.getItem('open_claude_design_theme');
                 if (saved === 'light') {
                   document.documentElement.classList.remove('dark');
                 } else if (saved === 'dark') {

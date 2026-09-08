@@ -16,12 +16,14 @@ import {
   SquarePen,
   Wand2,
   ArrowUpRight,
+  Brain,
 } from "lucide-react";
 import { QuestionFormView } from "./QuestionFormView";
 import { ModelPickerPopover } from "./ModelPickerPopover";
 import { getAllDesignSystems, type DesignSystem } from "@/lib/design-systems";
-import type { Message, ApiSettings, Project } from "@/lib/storage";
+import { type Message, type ApiSettings, type Project, getModelDisplayName, isFictionalOrLegacyModel } from "@/lib/storage";
 import { formatModelName, formatElementName } from "@/lib/formatters";
+import { KhayalLogo } from "@/components/KhayalLogo";
 
 interface ChatPaneProps {
   project: Project;
@@ -38,12 +40,13 @@ interface ChatPaneProps {
   isLoading: boolean;
   onSendMessage: (content: string) => void;
   onStopGeneration?: () => void;
-  selectedElement: { elementName: string; selector: string; textSnippet: string } | null;
+  selectedElement: { elementName: string; selector: string; textSnippet: string; breadcrumbs?: string } | null;
   onClearSelectedElement: () => void;
   settings: ApiSettings;
   onUpdateSettings: (settings: ApiSettings) => void;
   onOpenSettings: () => void;
   onOpenDesignSystem?: (brandId: string) => void;
+  width?: number;
 }
 
 const STARTER_PROMPTS = [
@@ -56,10 +59,53 @@ const STARTER_PROMPTS = [
 const QUICK_REVISIONS = [
   "Make this layout mobile responsive with a clean drawer menu",
   "Add an interactive dark / light theme toggle",
+  "Include pricing comparison cards with monthly and annual billing toggle",
   "Add customer testimonials with star ratings and avatar stack",
-  "Improve typography contrast and generous whitespace",
-  "Add interactive tabs and live search filtering",
+  "Include interactive search bar with instant tag filtering",
+  "Add an animated statistics counter grid (e.g. 99.9% uptime)",
+  "Improve typography hierarchy and generous airy whitespace",
 ];
+
+function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreaming?: boolean }) {
+  const [isOpen, setIsOpen] = useState(isStreaming ?? false);
+
+  useEffect(() => {
+    if (isStreaming) {
+      setIsOpen(true);
+    }
+  }, [isStreaming]);
+
+  return (
+    <div className="my-1.5 rounded-xl border border-border/70 bg-surface-subtle overflow-hidden transition-all text-xs">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-3 py-1.5 flex items-center justify-between text-foreground-muted hover:text-foreground transition-colors select-none text-[11px] font-medium"
+      >
+        <div className="flex items-center gap-1.5">
+          <Brain className={`w-3 h-3 text-terracotta ${isStreaming ? "animate-pulse" : ""}`} />
+          <span>Thinking process</span>
+          {isStreaming && (
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-terracotta animate-ping ml-1" />
+          )}
+        </div>
+        <ChevronDown
+          className={`w-3 h-3 transition-transform duration-200 text-foreground-muted ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="px-3 pb-3 pt-1 border-t border-border/50">
+          <div className="text-[11px] font-mono text-foreground-muted/90 bg-surface border border-border/60 rounded-lg p-2.5 max-h-48 overflow-y-auto whitespace-pre-wrap leading-relaxed select-text">
+            {thinking}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function ChatPane({
   project,
@@ -80,6 +126,7 @@ export function ChatPane({
   onUpdateSettings,
   onOpenSettings,
   onOpenDesignSystem,
+  width,
 }: ChatPaneProps) {
   const [input, setInput] = useState("");
   const [isModelPickerOpen, setIsModelPickerOpen] = useState(false);
@@ -108,15 +155,28 @@ export function ChatPane({
     scrollToBottom();
   }, [messages, isLoading]);
 
+  // Auto-resize prompt textarea up to max 160px
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      const scrollHeight = textareaRef.current.scrollHeight;
+      const targetHeight = Math.min(Math.max(48, scrollHeight), 160);
+      textareaRef.current.style.height = `${targetHeight}px`;
+    }
+  }, [input]);
+
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!input.trim() || isLoading) return;
     onSendMessage(input.trim());
     setInput("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "48px";
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if ((e.key === "Enter" && !e.shiftKey) || ((e.metaKey || e.ctrlKey) && e.key === "Enter")) {
       e.preventDefault();
       handleSubmit();
     }
@@ -137,7 +197,9 @@ export function ChatPane({
       if (res.ok && Array.isArray(data.models) && data.models.length > 0) {
         onUpdateSettings({
           ...settings,
-          availableModels: Array.from(new Set([...data.models, ...settings.availableModels])),
+          availableModels: Array.from(new Set([...data.models, ...settings.availableModels])).filter(
+            (m) => typeof m === "string" && !isFictionalOrLegacyModel(m)
+          ),
         });
       }
     } catch {
@@ -153,16 +215,21 @@ export function ChatPane({
     : "";
 
   return (
-    <div className="w-[420px] max-w-[45vw] h-full border-r border-border bg-surface flex flex-col shrink-0 select-none text-foreground transition-colors">
+    <div
+      style={width ? { width: `${width}px` } : undefined}
+      className={`h-full border-r border-border bg-surface flex flex-col shrink-0 select-none text-foreground transition-colors ${
+        width ? "max-w-full" : "w-[420px] max-w-[45vw]"
+      }`}
+    >
       {/* Top Left Header */}
       <div className="h-12 px-4 border-b border-border bg-surface flex items-center justify-between shrink-0 select-none">
         <div className="flex items-center gap-2 min-w-0 relative">
           <button
             onClick={onGoHome}
-            className="w-7 h-7 rounded-lg bg-surface-subtle border border-border/80 flex items-center justify-center text-terracotta hover:border-terracotta/40 transition-colors shrink-0 shadow-2xs"
+            className="hover:opacity-85 transition-opacity shrink-0 cursor-pointer"
             title="All designs gallery"
           >
-            <Sparkles className="w-3.5 h-3.5 fill-terracotta/20 text-terracotta" />
+            <KhayalLogo size={28} />
           </button>
 
           {/* Project Title Dropdown */}
@@ -281,9 +348,7 @@ export function ChatPane({
       <div className="flex-1 overflow-y-auto p-4 space-y-3 select-text text-xs">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col justify-center text-center px-4 py-8">
-            <div className="w-11 h-11 rounded-2xl bg-terracotta/10 border border-terracotta/20 text-terracotta flex items-center justify-center mx-auto mb-3 shadow-inner">
-              <Sparkles className="w-5 h-5" />
-            </div>
+            <KhayalLogo size={48} className="mx-auto mb-3" />
             <h2 className="font-editorial text-lg font-medium text-foreground mb-1">
               What would you like to design?
             </h2>
@@ -308,7 +373,7 @@ export function ChatPane({
             </div>
           </div>
         ) : (
-          messages.map((msg) => (
+          messages.map((msg, idx) => (
             <div key={msg.id} className="py-1.5">
               {msg.role === "user" ? (
                 <div className="flex justify-end mb-1">
@@ -318,7 +383,24 @@ export function ChatPane({
                 </div>
               ) : (
                 <div className="text-foreground/90 text-xs leading-relaxed space-y-2 select-text font-sans">
-                  <div className="whitespace-pre-wrap font-normal">{msg.content}</div>
+                  {msg.thinking && (
+                    <ThinkingBlock
+                      thinking={msg.thinking}
+                      isStreaming={isLoading && idx === messages.length - 1}
+                    />
+                  )}
+
+                  {msg.content && (
+                    <div
+                      className={`whitespace-pre-wrap font-normal ${
+                        msg.isError || msg.content.startsWith("⚠️")
+                          ? "p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400"
+                          : ""
+                      }`}
+                    >
+                      {msg.content}
+                    </div>
+                  )}
 
                   {msg.questionForm && (
                     <QuestionFormView
@@ -420,12 +502,20 @@ export function ChatPane({
 
           {/* Selected Element Pin Badge */}
           {selectedElement && (
-            <div className="px-2.5 py-0.5 rounded-md bg-terracotta/10 border border-terracotta/30 text-terracotta text-[10px] flex items-center gap-1.5">
+            <div className="px-2.5 py-1 rounded-lg bg-terracotta/10 border border-terracotta/30 text-terracotta text-[10px] flex items-center gap-1.5 max-w-[260px]">
               <Target className="w-2.5 h-2.5 text-terracotta shrink-0" />
-              <span className="font-medium truncate max-w-[140px]">{friendlyElementName}</span>
+              <div className="flex flex-col min-w-0">
+                <span className="font-medium truncate">{friendlyElementName}</span>
+                {selectedElement.breadcrumbs && (
+                  <span className="text-[9px] text-terracotta/70 font-mono truncate">
+                    {selectedElement.breadcrumbs}
+                  </span>
+                )}
+              </div>
               <button
+                type="button"
                 onClick={onClearSelectedElement}
-                className="hover:text-foreground ml-1"
+                className="hover:text-foreground ml-auto pl-1 cursor-pointer"
                 title="Deselect section"
               >
                 <X className="w-2.5 h-2.5" />
@@ -496,23 +586,30 @@ export function ChatPane({
                 )}
               </div>
 
-              {/* Model Picker Pill */}
-              <button
-                type="button"
-                onClick={() => setIsModelPickerOpen(!isModelPickerOpen)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors border ${
-                  settings.selectedModel
-                    ? "bg-surface hover:bg-surface-subtle text-foreground border-border"
-                    : "bg-terracotta/10 hover:bg-terracotta/20 text-terracotta border-terracotta/30"
-                }`}
-                title="Select model and thinking depth"
-              >
-                {!settings.selectedModel && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-terracotta animate-pulse" />
-                )}
-                <span className="truncate max-w-[130px]">{modelInfo.displayName}</span>
-                <ChevronDown className="w-3 h-3 text-foreground-muted" />
-              </button>
+              {/* Model & Effort Picker Pill matching screenshot */}
+              {(() => {
+                const modelName = getModelDisplayName(settings, settings.selectedModel);
+                const effortText =
+                  (settings.reasoningEffort || "medium").charAt(0).toUpperCase() +
+                  (settings.reasoningEffort || "medium").slice(1);
+
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setIsModelPickerOpen(!isModelPickerOpen)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-surface hover:bg-surface-subtle border border-border transition-colors text-foreground select-none"
+                    title="Select model and effort"
+                  >
+                    <span className="font-medium text-foreground truncate max-w-[130px]">
+                      {modelName}
+                    </span>
+                    <span className="text-foreground-muted font-normal">
+                      {effortText}
+                    </span>
+                    <ChevronDown className="w-3.5 h-3.5 text-foreground-muted ml-0.5" />
+                  </button>
+                );
+              })()}
 
               <ModelPickerPopover
                 isOpen={isModelPickerOpen}

@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     });
 
     const validMessages = messages
-      .filter((m: any) => (m.content || "").trim())
+      .filter((m: any) => (m.content || "").trim() && !m.isError && !m.content.startsWith("⚠️"))
       .map((m: any) => ({
         role: m.role === "assistant" ? "assistant" : "user",
         content: m.content,
@@ -52,30 +52,51 @@ export async function POST(req: NextRequest) {
       stream: true,
     };
 
-    if (
-      reasoningEffort &&
-      (model.includes("o1") ||
-        model.includes("o3") ||
-        model.includes("deepseek-r1") ||
-        model.includes("gpt-5.6") ||
-        model.includes("sol") ||
-        model.includes("terra"))
-    ) {
+    const isReasoningModel =
+      model.includes("o1") ||
+      model.includes("o3") ||
+      model.includes("deepseek-r1") ||
+      model.includes("thinking");
+
+    if (reasoningEffort && isReasoningModel) {
       requestPayload["reasoning_effort"] = reasoningEffort;
+      if (baseUrl.includes("openrouter")) {
+        requestPayload["reasoning"] = { effort: reasoningEffort };
+      }
     }
 
-    const res = await fetch(`${baseUrl}/chat/completions`, {
+    let res = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers,
       body: JSON.stringify(requestPayload),
     });
 
     if (!res.ok) {
-      const errText = await res.text();
-      return new Response(JSON.stringify({ error: `API Error (${res.status}): ${errText}` }), {
-        status: res.status,
-        headers: { "Content-Type": "application/json" },
-      });
+      let errText = await res.text();
+      // If the model rejected reasoning_effort parameter, gracefully retry without it
+      if (
+        res.status === 400 &&
+        requestPayload["reasoning_effort"] &&
+        (errText.includes("reasoning_effort") || errText.includes("unsupported_parameter"))
+      ) {
+        delete requestPayload["reasoning_effort"];
+        delete requestPayload["reasoning"];
+        res = await fetch(`${baseUrl}/chat/completions`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(requestPayload),
+        });
+        if (!res.ok) {
+          errText = await res.text();
+        }
+      }
+
+      if (!res.ok) {
+        return new Response(JSON.stringify({ error: `API Error (${res.status}): ${errText}` }), {
+          status: res.status,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
     }
 
     const encoder = new TextEncoder();
@@ -88,6 +109,7 @@ export async function POST(req: NextRequest) {
         }
 
         let buffer = "";
+        let isReasoning = false;
         try {
           while (true) {
             const { done, value } = await reader.read();
@@ -105,14 +127,34 @@ export async function POST(req: NextRequest) {
 
               try {
                 const event = JSON.parse(dataStr);
-                const textChunk = event.choices?.[0]?.delta?.content;
+                const delta = event.choices?.[0]?.delta;
+                const textChunk = delta?.content;
+                const reasoningChunk = delta?.reasoning || delta?.reasoning_content;
+
+                if (reasoningChunk) {
+                  if (!isReasoning) {
+                    controller.enqueue(encoder.encode("<think>"));
+                    isReasoning = true;
+                  }
+                  controller.enqueue(encoder.encode(reasoningChunk));
+                }
+
                 if (textChunk) {
+                  if (isReasoning) {
+                    controller.enqueue(encoder.encode("</think>\n"));
+                    isReasoning = false;
+                  }
                   controller.enqueue(encoder.encode(textChunk));
                 }
               } catch {
                 // ignore unparseable chunk
               }
             }
+          }
+
+          if (isReasoning) {
+            controller.enqueue(encoder.encode("</think>\n"));
+            isReasoning = false;
           }
         } catch (err: any) {
           controller.error(err);

@@ -239,11 +239,11 @@ export function CreateDesignSystemModal({
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-semibold text-foreground">Create Design System</h2>
                 <span className="text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-terracotta/10 text-terracotta border border-terracotta/20">
-                  Studio Architect
+                  Design Architect
                 </span>
               </div>
               <p className="text-xs text-foreground-muted">
-                Teach Claude your brand foundations, tokens, presentation slides, and UI templates
+                Teach Khayal your brand foundations, tokens, presentation slides, and UI templates
               </p>
             </div>
           </div>

@@ -517,7 +517,7 @@ export function DesignSystemView({
           {/* Design System View Pill */}
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface-subtle border border-border text-xs font-medium text-foreground shadow-2xs">
             <Palette className="w-3.5 h-3.5 text-terracotta" />
-            <span>Design System Studio</span>
+            <span>Design System</span>
           </div>
 
           <div className="hidden md:flex items-center gap-1.5 text-xs text-foreground-muted">
@@ -546,12 +546,13 @@ export function DesignSystemView({
             title="Download DESIGN.md contract"
           >
             <Download className="w-3.5 h-3.5 text-foreground-muted" />
-            <span>Export DESIGN.md</span>
+            <span>DESIGN.md</span>
           </button>
 
           <button
             onClick={() => handleCopy(window.location.href, "share")}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border hover:bg-surface-subtle text-xs font-medium text-foreground transition-colors shadow-2xs"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border hover:bg-surface-subtle text-xs font-medium text-foreground transition-colors shadow-2xs"
+            title="Copy share link"
           >
             <Share2 className="w-3.5 h-3.5 text-foreground-muted" />
             <span>{copiedToken === "share" ? "Copied!" : "Share"}</span>
@@ -561,7 +562,7 @@ export function DesignSystemView({
             onClick={onBack}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-terracotta hover:bg-terracotta-400 text-white text-xs font-medium transition-colors shadow-xs"
           >
-            <span>Back to Studio</span>
+            <span>Back to Canvas</span>
           </button>
         </div>
       </header>
@@ -576,7 +577,7 @@ export function DesignSystemView({
                 Start with context
               </h2>
               <p className="text-xs text-foreground-muted mt-1 leading-relaxed">
-                Teach Claude your brand foundations or connect design assets.
+                Teach Khayal your brand foundations or connect design assets.
               </p>
             </div>
 
@@ -1042,7 +1043,7 @@ export function DesignSystemView({
                       }
                       className="px-3 py-1.5 rounded-lg bg-terracotta hover:bg-terracotta-400 text-white text-xs font-medium flex items-center gap-1.5 transition-colors shadow-xs"
                     >
-                      <span>Open in Studio</span>
+                      <span>Open in Canvas</span>
                       <ArrowUpRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -1254,7 +1255,7 @@ export function DesignSystemView({
                       }
                       className="px-3 py-1.5 rounded-lg bg-terracotta hover:bg-terracotta-400 text-white text-xs font-medium flex items-center gap-1.5 transition-colors shadow-xs"
                     >
-                      <span>Open in Studio</span>
+                      <span>Open in Canvas</span>
                       <ArrowUpRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -1292,7 +1293,7 @@ export function DesignSystemView({
                         style={{ backgroundColor: currentSystem.accentColor }}
                         className="px-3 py-1 text-white font-bold text-xs rounded-lg"
                       >
-                        Launch Studio
+                        Launch Canvas
                       </button>
                     </div>
 
@@ -1366,7 +1367,7 @@ export function DesignSystemView({
                       }
                       className="px-3 py-1.5 rounded-lg bg-terracotta hover:bg-terracotta-400 text-white text-xs font-medium flex items-center gap-1.5 transition-colors shadow-xs"
                     >
-                      <span>Open in Studio</span>
+                      <span>Open in Canvas</span>
                       <ArrowUpRight className="w-3.5 h-3.5" />
                     </button>
                   </div>

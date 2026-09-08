@@ -14,7 +14,8 @@ import {
   Moon,
 } from "lucide-react";
 import { getAllDesignSystems } from "@/lib/design-systems";
-import type { ApiSettings, Project } from "@/lib/storage";
+import { type ApiSettings, type Project, getModelDisplayName } from "@/lib/storage";
+import { KhayalLogo } from "@/components/KhayalLogo";
 
 interface HeaderProps {
   project: Project;
@@ -62,12 +63,7 @@ export function Header({
     }
   };
 
-  const activeModelDisplay = settings.selectedModel
-    ? settings.selectedModel
-        .replace(/^accounts\/[^\/]+\/models\//, "")
-        .replace(/^anthropic\//, "")
-        .replace(/^openai\//, "")
-    : "No model selected";
+  const activeModelDisplay = getModelDisplayName(settings, settings.selectedModel);
 
   return (
     <header className="h-14 border-b border-border bg-surface px-4 flex items-center justify-between select-none z-20 shrink-0 text-foreground transition-colors">
@@ -78,11 +74,9 @@ export function Header({
           className="flex items-center gap-2 pr-3 border-r border-border hover:opacity-85 transition-opacity text-left cursor-pointer group"
           title="Back to Home"
         >
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#c96442] via-[#d97757] to-[#e28767] flex items-center justify-center shadow-md shadow-terracotta/20 group-hover:scale-105 transition-transform">
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
+          <KhayalLogo size={32} className="group-hover:scale-105 transition-transform" />
           <span className="font-editorial text-base font-medium tracking-tight text-foreground flex items-center gap-1.5">
-            Open Claude Design
+            Khayal
             <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-terracotta/15 text-terracotta">
               Beta
             </span>

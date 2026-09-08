@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
-import { Check, ChevronRight, Sliders, RefreshCw, Settings2, AlertCircle, Sparkles, Brain } from "lucide-react";
-import type { ApiSettings } from "@/lib/storage";
-import { formatModelName } from "@/lib/formatters";
+import React, { useState, useEffect, useRef } from "react";
+import { Check, ChevronRight, Settings2, AlertCircle } from "lucide-react";
+import { type ApiSettings, getConfiguredModels } from "@/lib/storage";
 
 interface ModelPickerPopoverProps {
   isOpen: boolean;
@@ -12,15 +11,21 @@ interface ModelPickerPopoverProps {
   onSelectModel: (model: string) => void;
   onSelectEffort: (effort: "low" | "medium" | "high") => void;
   onOpenSettings: () => void;
-  onRefreshModels: () => void;
+  onRefreshModels?: () => void;
   isRefreshingModels?: boolean;
 }
 
-const EFFORT_LEVELS = [
-  { id: "low", label: "Fast Draft", desc: "Quick ideas and rapid layout sketches" },
-  { id: "medium", label: "Balanced Craft", desc: "Thoughtful layouts with polished styling" },
-  { id: "high", label: "Deep Thinking", desc: "Complex interfaces with interactive state" },
-] as const;
+interface EffortOption {
+  id: "low" | "medium" | "high";
+  label: string;
+  isDefault?: boolean;
+}
+
+const EFFORT_OPTIONS: EffortOption[] = [
+  { id: "low", label: "Low" },
+  { id: "medium", label: "Medium" },
+  { id: "high", label: "High", isDefault: true },
+];
 
 export function ModelPickerPopover({
   isOpen,
@@ -29,184 +34,213 @@ export function ModelPickerPopover({
   onSelectModel,
   onSelectEffort,
   onOpenSettings,
-  onRefreshModels,
-  isRefreshingModels,
 }: ModelPickerPopoverProps) {
   const [showEffortSubmenu, setShowEffortSubmenu] = useState(false);
-  const [showAllModels, setShowAllModels] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [placement, setPlacement] = useState<"top" | "bottom">("bottom");
+  const [alignRight, setAlignRight] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const updatePosition = () => {
+      const parent = popoverRef.current?.parentElement;
+      if (!parent) return;
+      const rect = parent.getBoundingClientRect();
+
+      // Check vertical space: popover needs ~320px
+      const spaceAbove = rect.top;
+      const spaceBelow = window.innerHeight - rect.bottom;
+
+      // If space above is tight (< 340px) and there's more space below, open downward
+      if (spaceAbove < 340 && spaceBelow > spaceAbove) {
+        setPlacement("bottom");
+      } else {
+        setPlacement("top");
+      }
+
+      // Check horizontal space: main popover (288px) + submenu (288px) = ~580px
+      const spaceRight = window.innerWidth - rect.left;
+      if (spaceRight < 580 && rect.right > 580) {
+        setAlignRight(true);
+      } else {
+        setAlignRight(false);
+      }
+    };
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    return () => window.removeEventListener("resize", updatePosition);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const models = settings.availableModels || [];
-  const displayedModels = showAllModels ? models : models.slice(0, 6);
-
-  const activeEffortLabel =
-    EFFORT_LEVELS.find((l) => l.id === settings.reasoningEffort)?.label || "Balanced Craft";
+  const models = getConfiguredModels(settings);
 
   return (
     <>
-      <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="absolute bottom-full mb-2 left-0 w-84 bg-surface border border-border rounded-2xl shadow-2xl p-2.5 z-50 text-xs overflow-hidden backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100">
-        {models.length === 0 ? (
-          <div className="p-4 text-center space-y-3">
-            <div className="w-8 h-8 rounded-full bg-terracotta/10 text-terracotta flex items-center justify-center mx-auto">
-              <AlertCircle className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-foreground font-medium text-xs">No AI models connected</p>
-              <p className="text-[11px] text-foreground-muted mt-1 leading-relaxed">
-                Connect your provider or API key in Settings to begin designing.
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                onClose();
-                onOpenSettings();
-              }}
-              className="w-full py-2 rounded-xl bg-terracotta hover:bg-terracotta-hover text-white font-medium text-xs transition-colors shadow-sm"
-            >
-              Configure Provider
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="px-2 py-1 mb-1 border-b border-border flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-foreground-muted">
-              <span>Select Model</span>
-              <span className="text-[10px] text-foreground-muted font-normal">
-                {models.length} available
-              </span>
-            </div>
+      <div
+        className="fixed inset-0 z-40"
+        onClick={() => {
+          setShowEffortSubmenu(false);
+          onClose();
+        }}
+      />
 
-            {/* Model items */}
-            <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
-              {displayedModels.map((model) => {
-                const isSelected = settings.selectedModel === model;
-                const info = formatModelName(model);
+      <div
+        ref={popoverRef}
+        className={`absolute z-50 flex ${
+          placement === "top" ? "bottom-full mb-2 items-end" : "top-full mt-2 items-start"
+        } ${alignRight ? "right-0" : "left-0"}`}
+      >
+        {/* Main Model Selector Card */}
+        <div className="w-72 bg-surface/95 border border-border rounded-2xl shadow-2xl p-1.5 z-50 text-xs backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100 select-none">
+          {models.length === 0 ? (
+            <div className="p-4 text-center space-y-3">
+              <div className="w-8 h-8 rounded-full bg-terracotta/10 text-terracotta flex items-center justify-center mx-auto">
+                <AlertCircle className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-foreground font-medium text-xs">No models configured</p>
+                <p className="text-[11px] text-foreground-muted mt-1 leading-relaxed">
+                  Configure and name your models in Settings.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenSettings();
+                }}
+                className="w-full py-2 rounded-xl bg-terracotta hover:bg-terracotta-hover text-white font-medium text-xs transition-colors shadow-sm"
+              >
+                Open Settings
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Models List */}
+              <div className="space-y-0.5 max-h-56 overflow-y-auto pr-0.5">
+                {models.map((model) => {
+                  const isSelected = settings.selectedModel === model.id;
 
-                return (
-                  <button
-                    key={model}
-                    onClick={() => {
-                      onSelectModel(model);
-                      onClose();
-                    }}
-                    className={`w-full text-left p-2 rounded-xl flex items-center justify-between gap-2.5 transition-colors group ${
-                      isSelected
-                        ? "bg-terracotta/10 border border-terracotta/40 text-foreground"
-                        : "text-foreground-muted hover:bg-surface-subtle hover:text-foreground border border-transparent"
-                    }`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-medium text-xs text-foreground truncate">
-                          {info.displayName}
-                        </span>
-                        {info.badge && (
-                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-surface border border-border text-foreground-muted shrink-0 font-normal">
-                            {info.badge}
-                          </span>
+                  return (
+                    <button
+                      key={model.id}
+                      type="button"
+                      onClick={() => {
+                        onSelectModel(model.id);
+                        onClose();
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between transition-colors group ${
+                        isSelected
+                          ? "bg-surface-subtle text-foreground"
+                          : "text-foreground-muted hover:bg-surface-subtle hover:text-foreground"
+                      }`}
+                    >
+                      <div className="flex-1 min-w-0 mr-2">
+                        <div className="font-medium text-[13px] text-foreground truncate">
+                          {model.customName}
+                        </div>
+                        {model.description && (
+                          <div className="text-[11px] text-foreground-muted/80 truncate mt-0.5">
+                            {model.description}
+                          </div>
                         )}
                       </div>
-                      <div className="text-[10px] text-foreground-muted/80 truncate">
-                        {info.provider}
-                      </div>
-                    </div>
 
+                      {isSelected && (
+                        <Check className="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Divider */}
+              <div className="my-1 border-t border-border" />
+
+              {/* Effort Row */}
+              <button
+                type="button"
+                onClick={() => setShowEffortSubmenu(!showEffortSubmenu)}
+                onMouseEnter={() => setShowEffortSubmenu(true)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-colors text-[13px] font-medium ${
+                  showEffortSubmenu
+                    ? "bg-surface-subtle text-foreground"
+                    : "text-foreground hover:bg-surface-subtle"
+                }`}
+              >
+                <span>Effort</span>
+                <div className="flex items-center gap-1 text-foreground-muted text-xs">
+                  <span className="capitalize">{settings.reasoningEffort || "medium"}</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </div>
+              </button>
+
+              {/* Divider */}
+              <div className="my-1 border-t border-border" />
+
+              {/* More Models / Configure */}
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenSettings();
+                }}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-foreground hover:bg-surface-subtle transition-colors text-[13px] font-medium"
+              >
+                <span>More models</span>
+                <ChevronRight className="w-3.5 h-3.5 text-foreground-muted" />
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Effort Flyout Submenu (opens to the right or left based on screen clearance) */}
+        {showEffortSubmenu && (
+          <div
+            className={`${
+              alignRight ? "mr-2 -order-1" : "ml-2"
+            } w-72 bg-surface/95 border border-border rounded-2xl shadow-2xl p-3 z-50 text-xs backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100 select-none`}
+          >
+            <p className="text-[11px] text-foreground-muted leading-relaxed pb-2.5 border-b border-border">
+              Higher effort means more thorough responses, but takes longer and uses your limits faster.
+            </p>
+
+            <div className="pt-2 space-y-0.5">
+              {EFFORT_OPTIONS.map((item) => {
+                const isSelected = (settings.reasoningEffort || "medium") === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      onSelectEffort(item.id);
+                      setShowEffortSubmenu(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-[13px] transition-colors ${
+                      isSelected
+                        ? "bg-surface-subtle text-foreground font-medium"
+                        : "text-foreground hover:bg-surface-subtle"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span>{item.label}</span>
+                      {item.isDefault && (
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-surface border border-border text-foreground-muted font-normal">
+                          Default
+                        </span>
+                      )}
+                    </div>
                     {isSelected && (
-                      <Check className="w-3.5 h-3.5 text-terracotta shrink-0" />
+                      <Check className="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0" />
                     )}
                   </button>
                 );
               })}
             </div>
-
-            {/* Divider */}
-            <div className="my-1.5 border-t border-border" />
-
-            {/* Design Thinking Depth (Reasoning Effort) */}
-            <div className="relative">
-              <button
-                onClick={() => setShowEffortSubmenu(!showEffortSubmenu)}
-                className="w-full flex items-center justify-between p-2 rounded-xl text-foreground-muted hover:text-foreground hover:bg-surface-subtle transition-colors text-xs font-medium"
-              >
-                <div className="flex items-center gap-2">
-                  <Brain className="w-3.5 h-3.5 text-terracotta" />
-                  <span>Thinking Depth</span>
-                </div>
-                <div className="flex items-center gap-1 text-foreground-muted text-[11px]">
-                  <span>{activeEffortLabel}</span>
-                  <ChevronRight className="w-3 h-3" />
-                </div>
-              </button>
-
-              {/* Effort Submenu */}
-              {showEffortSubmenu && (
-                <div className="mt-1 p-1 bg-surface-subtle border border-border rounded-xl space-y-1">
-                  {EFFORT_LEVELS.map((level) => {
-                    const isSelected = (settings.reasoningEffort || "medium") === level.id;
-                    return (
-                      <button
-                        key={level.id}
-                        onClick={() => {
-                          onSelectEffort(level.id);
-                          setShowEffortSubmenu(false);
-                        }}
-                        className={`w-full text-left px-2.5 py-2 rounded-lg transition-colors flex items-start justify-between gap-2 ${
-                          isSelected
-                            ? "bg-terracotta/10 text-foreground font-medium"
-                            : "text-foreground-muted hover:text-foreground hover:bg-surface"
-                        }`}
-                      >
-                        <div>
-                          <div className="text-xs font-medium text-foreground">{level.label}</div>
-                          <div className="text-[10px] text-foreground-muted">{level.desc}</div>
-                        </div>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-terracotta shrink-0 mt-0.5" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Footer Row */}
-            <div className="pt-1.5 flex items-center justify-between border-t border-border mt-1 px-1 text-[11px]">
-              {models.length > 6 ? (
-                <button
-                  onClick={() => setShowAllModels(!showAllModels)}
-                  className="text-foreground-muted hover:text-foreground py-1 flex items-center gap-1"
-                >
-                  <span>{showAllModels ? "Show fewer" : `All models (${models.length})`}</span>
-                  <ChevronRight className="w-3 h-3" />
-                </button>
-              ) : (
-                <span className="text-foreground-muted/70">
-                  {models.length} model{models.length === 1 ? "" : "s"}
-                </span>
-              )}
-
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={onRefreshModels}
-                  disabled={isRefreshingModels}
-                  className="p-1.5 text-foreground-muted hover:text-foreground hover:bg-surface-subtle rounded-lg transition-colors"
-                  title="Check for newly available models"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingModels ? "animate-spin text-terracotta" : ""}`} />
-                </button>
-                <button
-                  onClick={() => {
-                    onClose();
-                    onOpenSettings();
-                  }}
-                  className="p-1.5 text-foreground-muted hover:text-foreground hover:bg-surface-subtle rounded-lg transition-colors"
-                  title="Manage AI settings"
-                >
-                  <Settings2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          </>
+          </div>
         )}
       </div>
     </>

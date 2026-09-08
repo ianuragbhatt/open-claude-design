@@ -11,7 +11,7 @@ export interface FormattedModel {
 }
 
 export function formatModelName(rawId: string): FormattedModel {
-  if (!rawId) {
+  if (!rawId || typeof rawId !== "string") {
     return { displayName: "Select AI Model", provider: "Auto" };
   }
 
@@ -50,33 +50,6 @@ export function formatModelName(rawId: string): FormattedModel {
       displayName: "Claude 3.5 Haiku",
       provider: "Anthropic",
       badge: "Fast",
-      isThinking: false,
-    };
-  }
-
-  if (cleanId.includes("gpt-5.6-sol") || cleanId.includes("gpt-5-sol")) {
-    return {
-      displayName: "GPT-5.6 Sol",
-      provider: "OpenAI",
-      badge: "Flagship Reasoning",
-      isThinking: true,
-    };
-  }
-
-  if (cleanId.includes("gpt-5.6-terra") || cleanId.includes("gpt-5-terra")) {
-    return {
-      displayName: "GPT-5.6 Terra",
-      provider: "OpenAI",
-      badge: "Balanced Craft",
-      isThinking: false,
-    };
-  }
-
-  if (cleanId.includes("gpt-5.6-luna") || cleanId.includes("gpt-5-luna")) {
-    return {
-      displayName: "GPT-5.6 Luna",
-      provider: "OpenAI",
-      badge: "Fast Draft",
       isThinking: false,
     };
   }
@@ -135,17 +108,39 @@ export function formatModelName(rawId: string): FormattedModel {
     };
   }
 
-  // Fallback: humanize name by removing provider prefixes and hyphens
+  // Fallback: humanize name by removing provider prefixes, dots, and hyphens
   const parts = cleanId.split("/");
   const modelPart = parts[parts.length - 1] || cleanId;
-  const provider = parts.length > 1 ? capitalize(parts[0]) : "AI";
+  const lowerClean = cleanId.toLowerCase();
 
-  const formatted = modelPart
-    .replace(/[-_]/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  let provider = "AI";
+  if (parts.length > 1) {
+    provider = capitalize(parts[0]);
+  } else if (lowerClean.startsWith("anthropic.") || lowerClean.includes("claude")) {
+    provider = "Anthropic";
+  } else if (lowerClean.startsWith("openai.") || lowerClean.startsWith("gpt") || lowerClean.includes("o1") || lowerClean.includes("o3")) {
+    provider = "OpenAI";
+  } else if (lowerClean.startsWith("google.") || lowerClean.includes("gemini")) {
+    provider = "Google";
+  } else if (lowerClean.startsWith("meta.") || lowerClean.includes("llama")) {
+    provider = "Meta";
+  } else if (lowerClean.startsWith("mistral.") || lowerClean.includes("mistral") || lowerClean.includes("mixtral")) {
+    provider = "Mistral";
+  } else if (lowerClean.startsWith("deepseek.") || lowerClean.includes("deepseek")) {
+    provider = "DeepSeek";
+  } else if (lowerClean.startsWith("amazon.") || lowerClean.includes("titan") || lowerClean.includes("bedrock")) {
+    provider = "Amazon";
+  }
+
+  // Strip redundant provider prefix from display name (e.g. anthropic.claude-opus-5 -> claude-opus-5)
+  const displayPart = modelPart
+    .replace(/^(?:us\.|eu\.)?(?:anthropic|openai|google|meta|amazon|mistral|deepseek)\./i, "")
+    .replace(/[-_.]/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
 
   return {
-    displayName: formatted,
+    displayName: displayPart || modelPart,
     provider,
     isThinking,
   };
@@ -165,7 +160,7 @@ export function formatElementName(rawName: string, textSnippet?: string): string
 
   // If the rawName was an injected data attribute like "hero-section"
   let clean = rawName
-    .replace(/^data-cd-element=/, "")
+    .replace(/^data-(?:khayal|cd)-element=/, "")
     .replace(/["']/g, "")
     .replace(/[-_]/g, " ")
     .trim();

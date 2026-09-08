@@ -11,26 +11,39 @@ export interface PromptContext {
 }
 
 export function buildSystemPrompt(context: PromptContext): string {
-  const brand: RichDesignSystem = getDesignSystem(context.brandId);
-  const brandGuidance = context.customBrand?.trim() 
-    ? `CUSTOM BRAND GUIDELINES:\n${context.customBrand}` 
-    : brand.promptGuidance;
+  const isFreeform = !context.brandId || context.brandId === "none" || context.brandId === "freeform";
 
-  const tokensSpec = brand.tokensCss
-    ? `\n### ACTIVE BRAND DESIGN CONTRACT & CSS TOKENS:
+  let brandGuidance = "";
+  let tokensSpec = "";
+
+  if (!isFreeform) {
+    const brand: RichDesignSystem = getDesignSystem(context.brandId);
+    brandGuidance = context.customBrand?.trim()
+      ? `CUSTOM BRAND GUIDELINES:\n${context.customBrand}`
+      : brand.promptGuidance;
+
+    tokensSpec = brand.tokensCss
+      ? `\n### ACTIVE BRAND DESIGN CONTRACT & CSS TOKENS:
 \`\`\`css
 ${brand.tokensCss}
 \`\`\`
-- Display Font: "${brand.foundations?.typography?.displayFont || 'Inter'}"
-- Body Font: "${brand.foundations?.typography?.bodyFont || 'Plus Jakarta Sans'}"
-- Mono Font: "${brand.foundations?.typography?.monoFont || 'JetBrains Mono'}"
+- Display Font: "${brand.foundations?.typography?.displayFont || "Inter"}"
+- Body Font: "${brand.foundations?.typography?.bodyFont || "Plus Jakarta Sans"}"
+- Mono Font: "${brand.foundations?.typography?.monoFont || "JetBrains Mono"}"
 - Primary Accent: ${brand.accentColor}
-- Canvas Mode: ${brand.bgDark ? 'Dark-mode-first' : 'Light canvas'}
+- Canvas Mode: ${brand.bgDark ? "Dark-mode-first" : "Light canvas"}
 `
-    : "";
+      : "";
+  } else if (context.customBrand?.trim()) {
+    brandGuidance = `CUSTOM BRAND GUIDELINES:\n${context.customBrand}`;
+  } else {
+    brandGuidance = `DESIGN MODE: FREEFORM / BESPOKE
+- Design without constraints of any single predefined brand system.
+- Select harmonious typography, color palette, shadows, and layout that best express the user's specific request.`;
+  }
 
   return `
-You are Open Claude Design, an elite AI UI/UX designer and software architect. You create production-grade, stunning, and fully responsive user interfaces.
+You are Khayal, an elite AI UI/UX designer and software architect. You create production-grade, stunning, and fully responsive user interfaces.
 
 You do not write conversational fluff. You deliver single-page, responsive web prototypes, apps, dashboards, and landing pages directly.
 
@@ -50,7 +63,7 @@ ${tokensSpec}
      - \`<script src="https://unpkg.com/lucide@latest"></script>\` for clean modern icons.
    - At the bottom of <body>, initialize icons with \`<script>lucide.createIcons();</script>\`.
 5. **Click-to-Edit Markers**:
-   - Add \`data-cd-element="descriptive-name"\` attributes to major components and sections (e.g., \`data-cd-element="hero-section"\`, \`data-cd-element="pricing-tier-pro"\`, \`data-cd-element="nav-header"\`). This enables precise targeted revisions when the user clicks elements.
+   - Add \`data-khayal-element="descriptive-name"\` attributes to major components and sections (e.g., \`data-khayal-element="hero-section"\`, \`data-khayal-element="pricing-tier-pro"\`, \`data-khayal-element="nav-header"\`). This enables precise targeted revisions when the user clicks elements.
 
 ### OUTPUT FORMAT:
 Deliver your complete code wrapped strictly inside an \`<artifact>\` block:

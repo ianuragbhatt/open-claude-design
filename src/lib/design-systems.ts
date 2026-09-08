@@ -140,8 +140,8 @@ export interface RichDesignSystem extends DesignSystem {
 
 export const DESIGN_SYSTEMS: RichDesignSystem[] = RICH_DESIGN_SYSTEMS;
 
-const CUSTOM_SYSTEMS_KEY = "open_claude_design_custom_systems";
-const CUSTOM_OVERRIDES_KEY = "open_claude_design_overrides";
+const CUSTOM_SYSTEMS_KEY = "khayal_custom_systems";
+const CUSTOM_OVERRIDES_KEY = "khayal_overrides";
 
 // Id alias mapping for backward compatibility with older projects
 const ID_ALIASES: Record<string, string> = {
@@ -154,7 +154,10 @@ const ID_ALIASES: Record<string, string> = {
 export function loadCustomDesignSystems(): RichDesignSystem[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(CUSTOM_SYSTEMS_KEY) || localStorage.getItem("claude_design_custom_systems");
+    const raw =
+      localStorage.getItem(CUSTOM_SYSTEMS_KEY) ||
+      localStorage.getItem("open_claude_design_custom_systems") ||
+      localStorage.getItem("claude_design_custom_systems");
     if (!raw) return [];
     return JSON.parse(raw);
   } catch {
@@ -165,7 +168,9 @@ export function loadCustomDesignSystems(): RichDesignSystem[] {
 export function loadSystemOverrides(): Record<string, Partial<RichDesignSystem>> {
   if (typeof window === "undefined") return {};
   try {
-    const raw = localStorage.getItem(CUSTOM_OVERRIDES_KEY);
+    const raw =
+      localStorage.getItem(CUSTOM_OVERRIDES_KEY) ||
+      localStorage.getItem("open_claude_design_overrides");
     if (!raw) return {};
     return JSON.parse(raw);
   } catch {
@@ -668,8 +673,8 @@ DESIGN SYSTEM: ${name.toUpperCase()}
   <div style="background-color: ${accent}10; border: 1px solid ${accent}30; border-radius: ${radius}; padding: 12px;" class="flex items-start gap-2.5">
     <span style="color: ${accent};" class="font-bold">✦</span>
     <div>
-      <h5 class="font-bold text-foreground">${name} ready for Studio</h5>
-      <p class="text-[11px] text-foreground-muted mt-0.5">Start prototyping immediately in the two-pane studio canvas.</p>
+      <h5 class="font-bold text-foreground">${name} ready for Canvas</h5>
+      <p class="text-[11px] text-foreground-muted mt-0.5">Start prototyping immediately on the interactive canvas.</p>
     </div>
   </div>
 </div>`,

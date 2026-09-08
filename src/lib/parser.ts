@@ -19,16 +19,35 @@ export interface ParsedArtifact {
 
 export interface ParsedStreamResult {
   text: string;
+  thinking?: string;
+  isThinking?: boolean;
   questionForm: QuestionForm | null;
   artifact: ParsedArtifact | null;
 }
 
 export function parseStreamContent(content: string): ParsedStreamResult {
   let text = content;
+  let thinking = "";
+  let isThinking = false;
   let questionForm: QuestionForm | null = null;
   let artifact: ParsedArtifact | null = null;
 
-  // 1. Check for <question-form>
+  // 1. Check for <think>...</think>
+  const thinkStartIdx = text.indexOf("<think>");
+  if (thinkStartIdx !== -1) {
+    const thinkEndIdx = text.indexOf("</think>", thinkStartIdx);
+    if (thinkEndIdx !== -1) {
+      thinking = text.slice(thinkStartIdx + 7, thinkEndIdx).trim();
+      text = (text.slice(0, thinkStartIdx) + "\n" + text.slice(thinkEndIdx + 8)).trim();
+      isThinking = false;
+    } else {
+      thinking = text.slice(thinkStartIdx + 7).trim();
+      text = text.slice(0, thinkStartIdx).trim();
+      isThinking = true;
+    }
+  }
+
+  // 2. Check for <question-form>
   const qFormMatch = text.match(/<question-form\s+id="([^"]*)"\s+question="([^"]*)">([\s\S]*?)<\/question-form>/i);
   if (qFormMatch) {
     const [fullMatch, qId, questionText, optionsContent] = qFormMatch;
@@ -94,6 +113,8 @@ export function parseStreamContent(content: string): ParsedStreamResult {
 
   return {
     text,
+    thinking: thinking || undefined,
+    isThinking,
     questionForm,
     artifact,
   };

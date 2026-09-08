@@ -1,0 +1,28 @@
+<svg width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="icon-lean-gold" x1="20%" y1="15%" x2="80%" y2="85%">
+      <stop offset="0%" stopColor="#f7c88b" />
+      <stop offset="40%" stopColor="#d97757" />
+      <stop offset="85%" stopColor="#ea8c6a" />
+      <stop offset="100%" stopColor="#f5b87a" />
+    </linearGradient>
+    <linearGradient id="icon-squircle-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#242220" />
+      <stop offset="100%" stopColor="#151413" />
+    </linearGradient>
+  </defs>
+
+  <rect x="3.5" y="3.5" width="93" height="93" rx="24" fill="url(#icon-squircle-bg)" stroke="#d97757" stroke-opacity="0.32" stroke-width="1.5" />
+
+  <g transform="translate(0, 1)">
+    <polygon points="50,23 54.5,27.5 50,32 45.5,27.5" fill="url(#icon-lean-gold)" />
+    <path
+      d="M 64 38.5 C 56 37.5, 48 37, 43 37.5 C 37 38.5, 36 43.5, 41 47 C 45 49.5, 47.5 51, 46.5 55 C 44.5 63, 40 68, 43 75 C 46 82, 57 82, 64 76 C 71 70, 71 58, 62 55.5 C 53 53.5, 43 62, 33 66"
+      fill="none"
+      stroke="url(#icon-lean-gold)"
+      stroke-width="4.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </g>
+</svg>

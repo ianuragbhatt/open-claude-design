@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { ModelPickerPopover } from "@/components/ModelPickerPopover";
 import { CreateDesignSystemModal } from "@/components/CreateDesignSystemModal";
+import { KhayalLogo } from "@/components/KhayalLogo";
 import {
   getAllDesignSystems,
   getDesignSystem,
@@ -34,7 +35,7 @@ import {
   exportDesignSystemMarkdown,
   type DesignSystem,
 } from "@/lib/design-systems";
-import type { ApiSettings, Project } from "@/lib/storage";
+import { type ApiSettings, type Project, getModelDisplayName, isFictionalOrLegacyModel } from "@/lib/storage";
 import { formatModelName } from "@/lib/formatters";
 
 interface HomeViewProps {
@@ -100,7 +101,7 @@ export function HomeView({
   onSubmitPrompt,
   onOpenDesignSystem,
 }: HomeViewProps) {
-  const [activeTab, setActiveTab] = useState<"projects" | "design-systems">("design-systems");
+  const [activeTab, setActiveTab] = useState<"projects" | "design-systems">("projects");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
@@ -137,7 +138,9 @@ export function HomeView({
       if (res.ok && Array.isArray(data.models) && data.models.length > 0) {
         onUpdateSettings({
           ...settings,
-          availableModels: Array.from(new Set([...data.models, ...settings.availableModels])),
+          availableModels: Array.from(new Set([...data.models, ...settings.availableModels])).filter(
+            (m) => typeof m === "string" && !isFictionalOrLegacyModel(m)
+          ),
         });
       }
     } catch {
@@ -185,13 +188,9 @@ export function HomeView({
     }
   };
 
-  const currentBrand =
-    allSystems.find((ds) => ds.id === selectedBrandId) || allSystems[0] || {
-      id: "claude-anthropic",
-      name: "Anthropic Design System",
-      accentColor: "#d97757",
-      badge: "Official",
-    };
+  const currentBrand = selectedBrandId
+    ? allSystems.find((ds) => ds.id === selectedBrandId) || null
+    : null;
 
   const handleSend = () => {
     if (!prompt.trim()) return;
@@ -253,17 +252,10 @@ export function HomeView({
       {/* Top Header */}
       <header className="h-12 w-full px-6 flex items-center justify-between z-20 border-b border-border bg-surface/80 backdrop-blur-md shrink-0 select-none">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-terracotta/10 border border-terracotta/20 flex items-center justify-center text-terracotta shadow-2xs">
-            <Sparkles className="w-4 h-4 fill-terracotta/20 text-terracotta" />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="font-editorial text-base tracking-tight text-foreground font-medium">
-              Open Claude Design
-            </span>
-            <span className="text-[10px] uppercase font-semibold tracking-wider px-1.5 py-0.5 rounded bg-terracotta/10 text-terracotta border border-terracotta/20">
-              Studio
-            </span>
-          </div>
+          <KhayalLogo size={28} />
+          <span className="font-editorial text-base tracking-tight text-foreground font-medium">
+            Khayal
+          </span>
         </div>
 
         {/* Right Controls */}
@@ -325,16 +317,20 @@ export function HomeView({
                   className="bg-surface-subtle hover:bg-surface border border-border rounded-xl px-2.5 py-1.5 flex items-center gap-2 text-left transition-colors"
                 >
                   <div
-                    className="w-4 h-4 rounded-full ring-1 ring-border shrink-0"
-                    style={{ backgroundColor: currentBrand.accentColor }}
-                  />
+                    className={`w-4 h-4 rounded-full ring-1 ring-border shrink-0 flex items-center justify-center text-[10px] ${
+                      currentBrand ? "" : "border border-dashed border-foreground-muted/60 text-foreground-muted bg-surface"
+                    }`}
+                    style={currentBrand ? { backgroundColor: currentBrand.accentColor } : {}}
+                  >
+                    {!currentBrand && "∅"}
+                  </div>
                   <div className="flex flex-col">
                     <span className="text-[9px] uppercase tracking-wider text-foreground-muted flex items-center gap-0.5">
                       Brand Style
                       <ChevronDown className="w-2.5 h-2.5 text-foreground-muted" />
                     </span>
                     <span className="text-xs font-medium text-foreground truncate max-w-[140px]">
-                      {currentBrand.name}
+                      {currentBrand ? currentBrand.name : "None (Freeform)"}
                     </span>
                   </div>
                 </button>
@@ -360,12 +356,39 @@ export function HomeView({
                         </button>
                       </div>
                       <div className="space-y-1 max-h-64 overflow-y-auto">
+                        {/* Option: None / Freeform */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedBrandId("");
+                            setIsDesignSystemMenuOpen(false);
+                          }}
+                          className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center gap-2.5 transition-colors text-xs ${
+                            !selectedBrandId
+                              ? "bg-terracotta/15 text-foreground font-medium"
+                              : "text-foreground hover:bg-surface-subtle"
+                          }`}
+                        >
+                          <span className="w-3.5 h-3.5 rounded-full shrink-0 border border-dashed border-foreground-muted/60 flex items-center justify-center text-[9px] text-foreground-muted">
+                            ∅
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="truncate font-medium">None (Freeform)</div>
+                            <div className="text-[10px] text-foreground-muted truncate">
+                              Create without any design system
+                            </div>
+                          </div>
+                          {!selectedBrandId && (
+                            <Check className="w-3.5 h-3.5 text-terracotta shrink-0" />
+                          )}
+                        </button>
+
                         {allSystems.map((brand) => (
                           <button
                             key={brand.id}
                             type="button"
                             onClick={() => {
-                              setSelectedBrandId(brand.id);
+                              setSelectedBrandId(selectedBrandId === brand.id ? "" : brand.id);
                               setIsDesignSystemMenuOpen(false);
                             }}
                             className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center gap-2.5 transition-colors text-xs ${
@@ -403,17 +426,15 @@ export function HomeView({
                   ref={modelButtonRef}
                   type="button"
                   onClick={() => setIsModelPickerOpen(!isModelPickerOpen)}
-                  className="bg-surface-subtle hover:bg-surface border border-border rounded-xl px-2.5 py-1.5 flex items-center gap-2 text-left transition-colors"
+                  className="bg-surface-subtle hover:bg-surface border border-border hover:border-terracotta/40 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 text-xs text-foreground transition-all shadow-2xs font-medium"
                 >
-                  <div className="flex flex-col">
-                    <span className="text-[9px] uppercase tracking-wider text-foreground-muted flex items-center gap-0.5">
-                      Model
-                      <ChevronDown className="w-2.5 h-2.5 text-foreground-muted" />
-                    </span>
-                    <span className="text-xs font-medium text-foreground truncate max-w-[130px]">
-                      {modelInfo.displayName}
-                    </span>
-                  </div>
+                  <span className="truncate max-w-[120px]">
+                    {getModelDisplayName(settings, settings.selectedModel)}
+                  </span>
+                  <span className="text-foreground-muted capitalize text-[11px]">
+                    {settings.reasoningEffort || "medium"}
+                  </span>
+                  <ChevronDown className="w-3 h-3 text-foreground-muted" />
                 </button>
 
                 <ModelPickerPopover
@@ -470,17 +491,6 @@ export function HomeView({
             {/* Tabs */}
             <div className="flex items-center gap-1.5">
               <button
-                onClick={() => setActiveTab("design-systems")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  activeTab === "design-systems"
-                    ? "bg-surface text-foreground border border-border shadow-sm"
-                    : "text-foreground-muted hover:text-foreground hover:bg-surface-subtle"
-                }`}
-              >
-                Brand Styles ({allSystems.length})
-              </button>
-
-              <button
                 onClick={() => setActiveTab("projects")}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   activeTab === "projects"
@@ -488,27 +498,38 @@ export function HomeView({
                     : "text-foreground-muted hover:text-foreground hover:bg-surface-subtle"
                 }`}
               >
-                Saved Designs ({projects.length})
+                Projects ({projects.length})
+              </button>
+
+              <button
+                onClick={() => setActiveTab("design-systems")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  activeTab === "design-systems"
+                    ? "bg-surface text-foreground border border-border shadow-sm"
+                    : "text-foreground-muted hover:text-foreground hover:bg-surface-subtle"
+                }`}
+              >
+                Design System ({allSystems.length})
               </button>
             </div>
 
             {/* Right Controls: Create Style / New Project, Search, View Toggle */}
             <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-              {activeTab === "design-systems" ? (
+              {activeTab === "projects" ? (
+                <button
+                  onClick={onNewProject}
+                  className="px-3 py-1.5 text-xs font-medium bg-terracotta hover:bg-terracotta-400 text-white rounded-lg flex items-center gap-1.5 transition-colors shadow-sm shadow-terracotta/20"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>New Project</span>
+                </button>
+              ) : (
                 <button
                   onClick={() => setIsCreateSystemOpen(true)}
                   className="px-3 py-1.5 text-xs font-medium bg-surface hover:bg-surface-subtle text-foreground border border-border rounded-lg flex items-center gap-1.5 transition-colors shadow-sm"
                 >
                   <Plus className="w-3.5 h-3.5 text-terracotta" />
                   <span>Create Brand Style</span>
-                </button>
-              ) : (
-                <button
-                  onClick={onNewProject}
-                  className="px-3 py-1.5 text-xs font-medium bg-terracotta hover:bg-terracotta-400 text-white rounded-lg flex items-center gap-1.5 transition-colors shadow-sm shadow-terracotta/20"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>New Design</span>
                 </button>
               )}
 
@@ -590,10 +611,7 @@ export function HomeView({
                   <table className="w-full text-left text-xs text-foreground">
                     <thead>
                       <tr className="text-foreground-muted border-b border-border text-[11px] font-medium">
-                        <th className="py-2.5 px-3 font-normal">Style Name & Palette</th>
-                        <th className="py-2.5 px-3 font-normal">Aesthetic / Mood</th>
-                        <th className="py-2.5 px-3 font-normal">Canvas</th>
-                        <th className="py-2.5 px-3 font-normal">Updated</th>
+                        <th className="py-2.5 px-3 font-normal">Design System</th>
                         <th className="py-2.5 px-3 font-normal text-right">Actions</th>
                       </tr>
                     </thead>
@@ -611,7 +629,7 @@ export function HomeView({
                               isSelected ? "bg-terracotta/10" : ""
                             }`}
                           >
-                            {/* Swatch & Name */}
+                            {/* Swatch, Name & Mood Badge */}
                             <td className="py-3 px-3">
                               <div className="flex items-center gap-3">
                                 <div className="w-14 h-8 rounded-md border border-border overflow-hidden flex shadow-2xs shrink-0 bg-surface">
@@ -636,38 +654,26 @@ export function HomeView({
                                 </div>
 
                                 <div className="min-w-0">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
                                     <span className="font-medium text-foreground group-hover:text-terracotta transition-colors">
                                       {system.name}
                                     </span>
+                                    {system.badge && (
+                                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface-subtle text-foreground-muted border border-border font-normal">
+                                        {system.badge}
+                                      </span>
+                                    )}
                                     {system.isCustom && (
                                       <span className="text-[9px] font-semibold uppercase px-1.5 py-0.2 rounded bg-terracotta/10 text-terracotta border border-terracotta/20">
                                         Custom
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-[11px] text-foreground-muted truncate max-w-md mt-0.5">
+                                  <p className="text-[11px] text-foreground-muted truncate max-w-xl mt-0.5">
                                     {system.description}
                                   </p>
                                 </div>
                               </div>
-                            </td>
-
-                            {/* Badge */}
-                            <td className="py-3 px-3 whitespace-nowrap">
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface-subtle text-foreground-muted border border-border">
-                                {system.badge}
-                              </span>
-                            </td>
-
-                            {/* Canvas Mode */}
-                            <td className="py-3 px-3 whitespace-nowrap text-foreground-muted text-[11px]">
-                              {system.bgDark ? "Dark Canvas" : "Light Canvas"}
-                            </td>
-
-                            {/* Updated */}
-                            <td className="py-3 px-3 text-foreground-muted text-[11px] whitespace-nowrap">
-                              {formatRelativeTime(system.updatedAt)}
                             </td>
 
                             {/* Actions */}
@@ -998,7 +1004,7 @@ export function HomeView({
           <div className="flex items-center gap-1.5 flex-wrap justify-center sm:justify-start">
             <span>Crafted for UI/UX designers</span>
             <span>&bull;</span>
-            <span>Inspired by Claude Design</span>
+            <span>Khayal &bull; AI UI Designer</span>
           </div>
           <div>
             <span>Editorial Warmth &bull; Live Interactive Canvas</span>

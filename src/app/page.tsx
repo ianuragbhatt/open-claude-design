@@ -24,7 +24,7 @@ import {
   DEFAULT_SETTINGS,
 } from "@/lib/storage";
 
-export default function OpenClaudeDesignStudio() {
+export default function KhayalApp() {
   const [currentView, setCurrentView] = useState<"home" | "studio" | "design-system">("home");
   const [activeDesignSystemId, setActiveDesignSystemId] = useState<string>("modernist");
   const [allProjects, setAllProjects] = useState<Project[]>([]);
@@ -37,9 +37,50 @@ export default function OpenClaudeDesignStudio() {
     elementName: string;
     selector: string;
     textSnippet: string;
+    breadcrumbs?: string;
   } | null>(null);
 
+  const [chatWidth, setChatWidth] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("khayal_chat_width");
+      if (saved) {
+        const num = parseInt(saved, 10);
+        if (!isNaN(num) && num >= 280 && num <= 720) return num;
+      }
+    }
+    return 420;
+  });
+  const [isDraggingDivider, setIsDraggingDivider] = useState(false);
+  const [mobileStudioTab, setMobileStudioTab] = useState<"chat" | "canvas">("canvas");
+
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const handleDividerMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDraggingDivider(true);
+  };
+
+  // Divider resize mouse event handlers
+  useEffect(() => {
+    if (!isDraggingDivider) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.min(Math.max(280, e.clientX), 720);
+      setChatWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsDraggingDivider(false);
+      localStorage.setItem("khayal_chat_width", chatWidth.toString());
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDraggingDivider, chatWidth]);
 
   // Initial load
   useEffect(() => {
@@ -223,6 +264,7 @@ export default function OpenClaudeDesignStudio() {
                 id: assistantMessageId,
                 role: "assistant",
                 content: parsed.text,
+                thinking: parsed.thinking,
                 questionForm: parsed.questionForm,
                 timestamp: Date.now(),
               },
@@ -237,6 +279,7 @@ export default function OpenClaudeDesignStudio() {
         id: assistantMessageId,
         role: "assistant",
         content: finalParsed.text || (finalParsed.artifact ? `Generated "${finalParsed.artifact.title}"` : ""),
+        thinking: finalParsed.thinking,
         questionForm: finalParsed.questionForm,
         timestamp: Date.now(),
       };
@@ -270,6 +313,39 @@ export default function OpenClaudeDesignStudio() {
       updateProject(finalizedProject);
     } catch (err: any) {
       if (err.name === "AbortError") {
+        const partialParsed = parseStreamContent(fullStreamText);
+        let partialVersions = [...currentActiveProject.versions];
+        let partialActiveIndex = currentActiveProject.activeVersionIndex;
+
+        if (partialParsed.artifact?.html) {
+          const newVersionNumber = partialVersions.length + 1;
+          partialVersions.push({
+            id: "ver_" + Math.random().toString(36).slice(2, 9),
+            versionNumber: newVersionNumber,
+            title: `${partialParsed.artifact.title || "Draft"} (Partial)`,
+            html: partialParsed.artifact.html,
+            timestamp: Date.now(),
+            promptSummary: content.slice(0, 60),
+          });
+          partialActiveIndex = partialVersions.length - 1;
+          setStreamingHtml(partialParsed.artifact.html);
+        }
+
+        const stoppedMsg: Message = {
+          id: assistantMessageId,
+          role: "assistant",
+          content: partialParsed.text ? `${partialParsed.text} [Stopped]` : "Generation stopped.",
+          thinking: partialParsed.thinking,
+          timestamp: Date.now(),
+        };
+
+        updateProject({
+          ...currentActiveProject,
+          messages: [...currentActiveProject.messages, userMessage, stoppedMsg],
+          versions: partialVersions,
+          activeVersionIndex: partialActiveIndex,
+          updatedAt: Date.now(),
+        });
         return;
       }
       let friendlyError = err?.message || "Failed to generate design.";
@@ -282,6 +358,7 @@ export default function OpenClaudeDesignStudio() {
         id: "err_" + Math.random().toString(36).slice(2, 9),
         role: "assistant",
         content: `⚠️ ${friendlyError}`,
+        isError: true,
         timestamp: Date.now(),
       };
       updateProject({
@@ -300,6 +377,20 @@ export default function OpenClaudeDesignStudio() {
     const updated = { ...settings, theme: nextTheme };
     setSettings(updated);
     saveSettings(updated);
+  };
+
+  const handleExportProjectJson = () => {
+    if (!project) return;
+    const blob = new Blob([JSON.stringify(project, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const slug = project.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    a.download = `${slug || "project"}.khayal.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleHomeSubmitPrompt = (promptText: string, brandId: string) => {
@@ -389,47 +480,108 @@ export default function OpenClaudeDesignStudio() {
           onBack={() => setCurrentView("home")}
         />
       ) : (
-        <div className="w-full h-full flex overflow-hidden">
-          {/* Left: Chat Pane with its own header, unboxed stream, and in-composer design system selector */}
-          <ChatPane
-            project={project}
-            allProjects={allProjects}
-            onSelectProject={handleSelectProject}
-            onNewProject={handleNewProject}
-            onRenameProject={handleRenameProject}
-            onDeleteProject={handleDeleteProject}
-            onGoHome={() => setCurrentView("home")}
-            brandId={project.brandId}
-            onSelectBrand={handleSelectBrand}
-            customBrand={project.customBrand}
-            messages={project.messages}
-            isLoading={isLoading}
-            onSendMessage={(content) => handleSendMessage(content)}
-            onStopGeneration={handleStopGeneration}
-            selectedElement={selectedElement}
-            onClearSelectedElement={() => setSelectedElement(null)}
-            settings={settings}
-            onUpdateSettings={(newSettings) => {
-              setSettings(newSettings);
-              saveSettings(newSettings);
-            }}
-            onOpenSettings={() => setIsSettingsOpen(true)}
-            onOpenDesignSystem={handleOpenDesignSystem}
-          />
+        <div className="w-full h-full flex flex-col overflow-hidden">
+          {/* Mobile Studio View Toggle (visible only on small screens < md) */}
+          <div className="md:hidden flex items-center justify-center py-2 px-3 border-b border-border bg-surface shrink-0 z-30">
+            <div className="flex bg-surface-subtle p-0.5 rounded-xl border border-border text-xs w-full max-w-xs">
+              <button
+                type="button"
+                onClick={() => setMobileStudioTab("chat")}
+                className={`flex-1 py-1 px-3 rounded-lg font-medium transition-all text-xs flex items-center justify-center gap-1.5 ${
+                  mobileStudioTab === "chat"
+                    ? "bg-surface text-foreground shadow-2xs font-semibold"
+                    : "text-foreground-muted hover:text-foreground"
+                }`}
+              >
+                <span>💬</span>
+                <span>Chat</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileStudioTab("canvas")}
+                className={`flex-1 py-1 px-3 rounded-lg font-medium transition-all text-xs flex items-center justify-center gap-1.5 ${
+                  mobileStudioTab === "canvas"
+                    ? "bg-surface text-foreground shadow-2xs font-semibold"
+                    : "text-foreground-muted hover:text-foreground"
+                }`}
+              >
+                <span>🖥️</span>
+                <span>Canvas</span>
+              </button>
+            </div>
+          </div>
 
-          {/* Right: Live Canvas Preview Pane with Claude Design command ribbon */}
-          <PreviewPane
-            projectName={project.name}
-            currentHtml={streamingHtml}
-            versions={project.versions}
-            activeVersionIndex={project.activeVersionIndex}
-            onSelectVersion={handleSelectVersion}
-            onSelectElement={(info) => setSelectedElement(info)}
-            isLoading={isLoading}
-            theme={settings.theme}
-            onToggleTheme={handleToggleTheme}
-            onOpenSettings={() => setIsSettingsOpen(true)}
-          />
+          <div className="flex-1 w-full h-full flex flex-col md:flex-row overflow-hidden relative">
+            {/* Left: Chat Pane with custom resizable width */}
+            <div
+              className={`h-full ${
+                mobileStudioTab === "chat" ? "flex w-full" : "hidden"
+              } md:flex shrink-0`}
+            >
+              <ChatPane
+                project={project}
+                allProjects={allProjects}
+                onSelectProject={handleSelectProject}
+                onNewProject={handleNewProject}
+                onRenameProject={handleRenameProject}
+                onDeleteProject={handleDeleteProject}
+                onGoHome={() => setCurrentView("home")}
+                brandId={project.brandId}
+                onSelectBrand={handleSelectBrand}
+                customBrand={project.customBrand}
+                messages={project.messages}
+                isLoading={isLoading}
+                onSendMessage={(content) => handleSendMessage(content)}
+                onStopGeneration={handleStopGeneration}
+                selectedElement={selectedElement}
+                onClearSelectedElement={() => setSelectedElement(null)}
+                settings={settings}
+                onUpdateSettings={(newSettings) => {
+                  setSettings(newSettings);
+                  saveSettings(newSettings);
+                }}
+                onOpenSettings={() => setIsSettingsOpen(true)}
+                onOpenDesignSystem={handleOpenDesignSystem}
+                width={chatWidth}
+              />
+            </div>
+
+            {/* Resizable Divider (desktop only) */}
+            <div
+              onMouseDown={handleDividerMouseDown}
+              className={`hidden md:flex w-1.5 hover:w-2 hover:bg-terracotta/40 cursor-col-resize items-center justify-center transition-all shrink-0 select-none z-20 ${
+                isDraggingDivider ? "bg-terracotta w-2" : "bg-border/60 hover:bg-terracotta/40"
+              }`}
+              title="Drag to resize chat and canvas"
+            >
+              <div className="w-0.5 h-6 bg-foreground-muted/40 rounded-full" />
+            </div>
+
+            {/* Right: Live Canvas Preview Pane */}
+            <div
+              className={`flex-1 h-full min-w-0 ${
+                mobileStudioTab === "canvas" ? "flex w-full" : "hidden"
+              } md:flex`}
+            >
+              <PreviewPane
+                projectName={project.name}
+                currentHtml={streamingHtml}
+                streamingCode={streamingHtml}
+                versions={project.versions}
+                activeVersionIndex={project.activeVersionIndex}
+                onSelectVersion={handleSelectVersion}
+                onSelectElement={(info) => {
+                  setSelectedElement(info);
+                  setMobileStudioTab("chat");
+                }}
+                isLoading={isLoading}
+                theme={settings.theme}
+                onToggleTheme={handleToggleTheme}
+                onOpenSettings={() => setIsSettingsOpen(true)}
+                onExportProjectJson={handleExportProjectJson}
+              />
+            </div>
+          </div>
         </div>
       )}
 

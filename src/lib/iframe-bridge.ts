@@ -1,18 +1,25 @@
 export const IFRAME_BRIDGE_SCRIPT = `
-<script id="open-claude-design-bridge">
+<script id="khayal-bridge">
 (function() {
   var mode = 'interact'; // 'interact' or 'inspect'
   var hoveredEl = null;
+  var selectedEl = null;
 
   var style = document.createElement('style');
-  style.id = 'open-claude-design-bridge-styles';
+  style.id = 'khayal-bridge-styles';
   style.textContent = \`
-    .cd-inspect-hover {
+    .khayal-inspect-hover {
       outline: 2px solid #d97757 !important;
       outline-offset: -2px !important;
       cursor: crosshair !important;
       background-color: rgba(217, 119, 87, 0.12) !important;
       transition: outline 0.1s ease, background-color 0.1s ease !important;
+    }
+    .khayal-inspect-selected {
+      outline: 2px solid #d97757 !important;
+      outline-offset: -2px !important;
+      background-color: rgba(217, 119, 87, 0.18) !important;
+      box-shadow: 0 0 0 4px rgba(217, 119, 87, 0.25) !important;
     }
   \`;
   document.head.appendChild(style);
@@ -22,8 +29,23 @@ export const IFRAME_BRIDGE_SCRIPT = `
     if (e.data.type === 'SET_MODE') {
       mode = e.data.mode;
       if (mode === 'interact' && hoveredEl) {
-        hoveredEl.classList.remove('cd-inspect-hover');
+        hoveredEl.classList.remove('khayal-inspect-hover');
         hoveredEl = null;
+      }
+    } else if (e.data.type === 'CLEAR_SELECTION') {
+      if (selectedEl) {
+        selectedEl.classList.remove('khayal-inspect-selected');
+        selectedEl = null;
+      }
+    } else if (e.data.type === 'SET_THEME') {
+      if (e.data.theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else if (e.data.theme === 'light') {
+        document.documentElement.classList.remove('dark');
+      }
+    } else if (e.data.type === 'UPDATE_TOKENS' && e.data.tokens) {
+      for (var k in e.data.tokens) {
+        document.documentElement.style.setProperty(k, e.data.tokens[k]);
       }
     }
   });
@@ -33,17 +55,17 @@ export const IFRAME_BRIDGE_SCRIPT = `
     var target = e.target;
     if (!target || target === document.body || target === document.documentElement) return;
     if (hoveredEl && hoveredEl !== target) {
-      hoveredEl.classList.remove('cd-inspect-hover');
+      hoveredEl.classList.remove('khayal-inspect-hover');
     }
     hoveredEl = target;
-    hoveredEl.classList.add('cd-inspect-hover');
+    hoveredEl.classList.add('khayal-inspect-hover');
   }, true);
 
   document.addEventListener('mouseout', function(e) {
     if (mode !== 'inspect') return;
     var target = e.target;
     if (target && target.classList) {
-      target.classList.remove('cd-inspect-hover');
+      target.classList.remove('khayal-inspect-hover');
     }
   }, true);
 
@@ -55,26 +77,55 @@ export const IFRAME_BRIDGE_SCRIPT = `
     var target = e.target;
     if (!target) return;
 
-    var elementName = target.getAttribute('data-cd-element') || 
+    if (selectedEl && selectedEl !== target) {
+      selectedEl.classList.remove('khayal-inspect-selected');
+    }
+    selectedEl = target;
+    selectedEl.classList.add('khayal-inspect-selected');
+
+    var customElementTag = target.getAttribute('data-khayal-element') || target.getAttribute('data-cd-element');
+    var elementName = customElementTag || 
                       target.id || 
-                      (target.tagName.toLowerCase() + (target.className ? '.' + target.className.split(' ')[0] : ''));
+                      (target.tagName.toLowerCase() + (target.className && typeof target.className === 'string' ? '.' + target.className.split(' ')[0] : ''));
 
     var textSnippet = (target.innerText || target.textContent || '').trim().slice(0, 80);
     
     var selector = target.tagName.toLowerCase();
     if (target.id) {
       selector += '#' + target.id;
+    } else if (target.getAttribute('data-khayal-element')) {
+      selector += '[data-khayal-element="' + target.getAttribute('data-khayal-element') + '"]';
     } else if (target.getAttribute('data-cd-element')) {
       selector += '[data-cd-element="' + target.getAttribute('data-cd-element') + '"]';
+    }
+
+    // Build ancestor breadcrumb path
+    var path = [];
+    var curr = target;
+    while (curr && curr !== document.body && curr !== document.documentElement && path.length < 3) {
+      var tag = curr.getAttribute('data-khayal-element') || curr.id || curr.tagName.toLowerCase();
+      path.unshift(tag);
+      curr = curr.parentElement;
     }
 
     window.parent.postMessage({
       type: 'ELEMENT_SELECTED',
       elementName: elementName,
       selector: selector,
-      textSnippet: textSnippet
+      textSnippet: textSnippet,
+      breadcrumbs: path.join(' > ')
     }, '*');
   }, true);
+
+  // Auto-refresh Lucide icons on dynamic DOM modifications
+  try {
+    var iconObserver = new MutationObserver(function() {
+      if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+      }
+    });
+    iconObserver.observe(document.body, { childList: true, subtree: true });
+  } catch(e) {}
 
   // Notify parent that bridge is ready
   window.parent.postMessage({ type: 'BRIDGE_READY' }, '*');
@@ -130,7 +181,7 @@ export function injectBridgeIntoHtml(rawHtml: string): string {
   }
 
   // 3. Inject our inspector bridge
-  if (!processed.includes("open-claude-design-bridge")) {
+  if (!processed.includes("khayal-bridge") && !processed.includes("open-claude-design-bridge")) {
     if (processed.includes("</body>")) {
       processed = processed.replace("</body>", `${IFRAME_BRIDGE_SCRIPT}\n</body>`);
     } else {

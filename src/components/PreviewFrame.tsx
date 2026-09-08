@@ -6,8 +6,9 @@ import { injectBridgeIntoHtml } from "@/lib/iframe-bridge";
 interface PreviewFrameProps {
   html: string;
   mode: "interact" | "inspect";
-  onSelectElement: (info: { elementName: string; selector: string; textSnippet: string }) => void;
+  onSelectElement: (info: { elementName: string; selector: string; textSnippet: string; breadcrumbs?: string }) => void;
   isLoading?: boolean;
+  theme?: "dark" | "light";
 }
 
 export function PreviewFrame({
@@ -15,6 +16,7 @@ export function PreviewFrame({
   mode,
   onSelectElement,
   isLoading,
+  theme,
 }: PreviewFrameProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [bridgeReady, setBridgeReady] = useState(false);
@@ -31,20 +33,24 @@ export function PreviewFrame({
       if (!event.data || typeof event.data !== "object") return;
       if (event.data.type === "BRIDGE_READY") {
         setBridgeReady(true);
-        // Send initial mode
+        // Send initial mode and theme
         iframeRef.current?.contentWindow?.postMessage({ type: "SET_MODE", mode }, "*");
+        if (theme) {
+          iframeRef.current?.contentWindow?.postMessage({ type: "SET_THEME", theme }, "*");
+        }
       } else if (event.data.type === "ELEMENT_SELECTED") {
         onSelectElement({
           elementName: event.data.elementName,
           selector: event.data.selector,
           textSnippet: event.data.textSnippet,
+          breadcrumbs: event.data.breadcrumbs,
         });
       }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [mode, onSelectElement]);
+  }, [mode, theme, onSelectElement]);
 
   // Sync mode changes to iframe
   useEffect(() => {
@@ -52,6 +58,13 @@ export function PreviewFrame({
       iframeRef.current.contentWindow.postMessage({ type: "SET_MODE", mode }, "*");
     }
   }, [mode, bridgeReady]);
+
+  // Sync theme changes to iframe
+  useEffect(() => {
+    if (iframeRef.current?.contentWindow && theme) {
+      iframeRef.current.contentWindow.postMessage({ type: "SET_THEME", theme }, "*");
+    }
+  }, [theme, bridgeReady]);
 
   if (!html && isLoading) {
     return (

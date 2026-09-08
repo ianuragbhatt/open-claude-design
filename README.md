@@ -1,16 +1,16 @@
-# Open Claude Design
+# Khayal (خيال)
 
-> A clean, lean, open-source **Claude Design** alternative. Live canvas preview, `DESIGN.md` brand contracts, unified BYOK LLM support, and zero monolithic bloat.
+> A clean, lean, open-source AI UI designer & canvas. Live canvas preview, `DESIGN.md` brand contracts, unified BYOK LLM support, and zero monolithic bloat.
 
 Built with **Next.js 15 (Turbopack) + React 19 + Tailwind CSS + TypeScript**.
 
 ---
 
-## 🌟 Why Open Claude Design?
+## 🌟 Why Khayal?
 
 Most AI design tools are either locked behind closed platforms or wrapped in complex monolithic daemons with background sidecars, virtual pets, and multi-gigabyte dependencies.
 
-**Open Claude Design** is built with simplicity first:
+**Khayal** (*Arabic for Imagination / Creative Vision*) is built with simplicity first:
 - **Zero background daemons or sidecars**: Runs as a single, lightweight Next.js app (`npm run dev`).
 - **No vendor lock-in**: Works with any OpenAI-compatible provider (OpenRouter, LiteLLM, vLLM, Ollama, Groq, DeepSeek, etc.) by supplying a Base URL and API key.
 - **Dynamic model discovery**: Automatically populates models from your endpoint's `/models` API without hardcoded model lists.
@@ -20,20 +20,20 @@ Most AI design tools are either locked behind closed platforms or wrapped in com
 
 ## ✨ Features
 
-### 1. Open Claude Design Homepage
-- **Editorial Typography**: Styled with serif headlines (*"What should we create today?"*) matching the official Claude Design aesthetic.
+### 1. Khayal Homepage
+- **Editorial Typography**: Styled with serif headlines (*"What should we create today?"*) with refined, warm aesthetics.
 - **Hero Composer**: Prompt card equipped with brand style picker, friendly model selector pill, one-click creative inspiration chips, and launch button.
 - **Brand Styles Tab**: Visual swatch palette cards, aesthetic mood tags, atmosphere badges, and an intuitive visual brand style creator.
 - **Saved Designs Tab**: Easily browse, open, rename, or delete past design projects stored in local state.
 
-### 2. 2-Pane Studio Canvas
+### 2. 2-Pane Canvas Workspace
 - **Conversational Design Brief**: Interactive chat on the left to iteratively refine prototypes and generate variations with real-world UI starters and quick enhancement prompts.
 - **Live Sandboxed Preview**: Safe, isolated `<iframe>` canvas that streams live HTML/CSS updates as the model generates.
 - **Click-to-Edit Mode**: Click any element or section in the preview to attach a clean, human-friendly component tag (e.g. *"Hero Section"*, *"Pricing Tier"*) for pinpoint revisions.
 - **Interact Mode**: Test buttons, toggle tabs, try dropdowns, and verify interactive scripts directly inside the live prototype.
 
 ### 3. Friendly Model & Thinking Depth Popover
-- Recreates the iconic Claude Design model pill (`[Model] ⌵`).
+- Sleek model selector pill (`[Model] ⌵`).
 - Choose Design Thinking Depth (*Fast Draft*, *Balanced Craft*, *Deep Thinking*).
 - Formats raw technical model identifiers into clean labels (e.g. *Claude 3.7 Sonnet*, *Claude 3.5 Sonnet*, *GPT-4o*).
 
@@ -53,8 +53,8 @@ Most AI design tools are either locked behind closed platforms or wrapped in com
 ### 1. Clone and Install
 
 ```bash
-git clone https://github.com/ianuragbhatt/open-claude-design.git
-cd open-claude-design
+git clone https://github.com/ianuragbhatt/khayal.git
+cd khayal
 npm install
 ```
 
@@ -77,7 +77,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ## 📁 Project Structure
 
 ```
-open-claude-design/
+khayal/
 ├── src/
 │   ├── app/
 │   │   ├── api/
@@ -85,12 +85,13 @@ open-claude-design/
 │   │   │   └── models/route.ts    # Dynamic /models endpoint
 │   │   ├── globals.css            # Tailwind & typography styles
 │   │   ├── layout.tsx             # Root layout & app metadata
-│   │   └── page.tsx               # Main entrypoint toggling Home & Studio views
+│   │   └── page.tsx               # Main entrypoint toggling Home & Canvas views
 │   ├── components/
 │   │   ├── ChatPane.tsx           # Left conversational brief pane
 │   │   ├── CreateDesignSystemModal.tsx # Custom design system creator
-│   │   ├── Header.tsx             # Studio header with brand & project switchers
-│   │   ├── HomeView.tsx           # Open Claude Design homepage with hero composer & tabs
+│   │   ├── Header.tsx             # Main header with brand & project switchers
+│   │   ├── HomeView.tsx           # Khayal homepage with hero composer & tabs
+│   │   ├── KhayalLogo.tsx         # Lean & beautiful vector brand emblem
 │   │   ├── ModelPickerPopover.tsx # Model pill dropdown with effort selector
 │   │   ├── PreviewFrame.tsx       # Sandboxed iframe with inspect/edit highlighting
 │   │   ├── PreviewPane.tsx        # Right canvas pane with viewport toggles
@@ -112,7 +113,7 @@ This project is created for the community and is built on the inspiration and co
 
 1. **[Claude Design by Anthropic](https://claude.ai/design)** (`https://claude.ai/design`):
    - Full credit for the visual design inspiration, editorial typography, UI aesthetic, the iconic *"What should we create?"* hero prompt composer, the model pill popover, and the conversational design-first UX.
-   - *Disclaimer*: Open Claude Design is an independent open-source project and is not affiliated with, maintained by, or endorsed by Anthropic. "Claude" is a trademark of Anthropic, PBC.
+   - *Disclaimer*: Khayal is an independent open-source project and is not affiliated with, maintained by, or endorsed by Anthropic. "Claude" is a trademark of Anthropic, PBC.
 
 2. **[OpenDesign](https://github.com/open-design/open-design)** (`https://github.com/open-design/open-design`):
    - Full credit for the foundational inspiration behind the `DESIGN.md` brand contract protocol, brand-system prompt rules (Linear, Stripe, Apple, Vercel, etc.), iframe canvas communication, and bringing agentic design workflows to developers.
