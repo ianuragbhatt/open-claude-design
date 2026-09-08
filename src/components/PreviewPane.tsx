@@ -23,19 +23,30 @@ import {
   RotateCcw,
   FileJson,
   Layers,
+  Archive,
 } from "lucide-react";
 import { PreviewFrame } from "./PreviewFrame";
 import { CodeViewer } from "./CodeViewer";
 import type { ArtifactVersion } from "@/lib/storage";
+import { broadcastWorkspaceReload } from "@/lib/workspace-sync";
 
 interface PreviewPaneProps {
+  projectId?: string;
   projectName?: string;
   currentHtml: string;
   streamingCode?: string;
   versions: ArtifactVersion[];
   activeVersionIndex: number;
   onSelectVersion: (index: number) => void;
-  onSelectElement: (info: { elementName: string; selector: string; textSnippet: string; breadcrumbs?: string }) => void;
+  onSelectElement: (info: {
+    elementName: string;
+    selector: string;
+    textSnippet: string;
+    breadcrumbs?: string;
+    filePath?: string;
+  }) => void;
+  onRuntimeError?: (error: { message: string; filename?: string; lineno?: number }) => void;
+  externalReloadKey?: number;
   isLoading?: boolean;
   theme?: "dark" | "light";
   onToggleTheme?: () => void;
@@ -46,6 +57,7 @@ interface PreviewPaneProps {
 type ViewportMode = "desktop" | "tablet" | "mobile" | "responsive";
 
 export function PreviewPane({
+  projectId,
   projectName,
   currentHtml,
   streamingCode,
@@ -53,6 +65,8 @@ export function PreviewPane({
   activeVersionIndex,
   onSelectVersion,
   onSelectElement,
+  onRuntimeError,
+  externalReloadKey = 0,
   isLoading,
   theme,
   onToggleTheme,
@@ -64,9 +78,26 @@ export function PreviewPane({
   const [activeTab, setActiveTab] = useState<"preview" | "code">("preview");
   const [desktopZoom, setDesktopZoom] = useState<"fit" | "100" | "75" | "50">("fit");
   const [reloadKey, setReloadKey] = useState(0);
+  const [workspaceFiles, setWorkspaceFiles] = useState<Record<string, string>>({});
+  const [selectedFile, setSelectedFile] = useState<string>("index.html");
   const [isVersionMenuOpen, setIsVersionMenuOpen] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+
+  const effectiveReloadKey = reloadKey + externalReloadKey;
+
+  // Fetch workspace files for multi-file code viewer
+  React.useEffect(() => {
+    if (!projectId || activeTab !== "code") return;
+    fetch(`/api/workspaces/${projectId}/files`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.fileContents) {
+          setWorkspaceFiles(data.fileContents);
+        }
+      })
+      .catch(() => {});
+  }, [projectId, effectiveReloadKey, activeTab]);
 
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(1200);
@@ -144,7 +175,24 @@ export function PreviewPane({
     URL.revokeObjectURL(url);
   };
 
-  const handleOpenNewTab = () => {
+  const handleDownloadZip = () => {
+    if (!projectId) {
+      handleDownload();
+      return;
+    }
+    const a = document.createElement("a");
+    a.href = `/api/workspaces/${projectId}/export`;
+    a.download = `${projectName || "khayal-project"}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleOpenPresent = () => {
+    if (projectId) {
+      window.open(`/api/workspaces/${projectId}/index.html?present=1`, "_blank");
+      return;
+    }
     if (!htmlToDisplay) return;
     const blob = new Blob([htmlToDisplay], { type: "text/html" });
     const url = URL.createObjectURL(blob);
@@ -165,9 +213,12 @@ export function PreviewPane({
         {/* Left Section: Reload + Artifact/Version Title Dropdown */}
         <div className="flex items-center gap-1.5">
           <button
-            onClick={() => setReloadKey((prev) => prev + 1)}
+            onClick={() => {
+              setReloadKey((prev) => prev + 1);
+              if (projectId) broadcastWorkspaceReload(projectId);
+            }}
             className="w-8 h-8 rounded-lg text-foreground-muted hover:text-foreground hover:bg-surface-subtle flex items-center justify-center transition-colors"
-            title="Reload canvas preview"
+            title="Reload canvas preview & sync presentation tabs"
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
@@ -356,6 +407,18 @@ export function PreviewPane({
             <span className="hidden sm:inline">Code</span>
           </button>
 
+          {/* Dedicated Fullscreen Presentation Button */}
+          <button
+            onClick={handleOpenPresent}
+            disabled={!htmlToDisplay}
+            className="h-7 px-3 rounded-lg bg-surface-subtle/80 hover:bg-surface border border-border/80 hover:border-terracotta/40 text-foreground font-medium text-xs flex items-center gap-1.5 transition-all shadow-2xs group cursor-pointer disabled:opacity-40"
+            title="Present in fullscreen new tab with real-time live sync"
+          >
+            <Maximize2 className="w-3.5 h-3.5 text-terracotta group-hover:scale-110 transition-transform" />
+            <span>Present</span>
+            <ExternalLink className="w-2.5 h-2.5 text-foreground-muted opacity-70 group-hover:opacity-100" />
+          </button>
+
           {/* Prominent Export Pill */}
           <div className="relative">
             <button
@@ -398,6 +461,19 @@ export function PreviewPane({
                     <span>Download Prototype (.html)</span>
                   </button>
 
+                  {projectId && (
+                    <button
+                      onClick={() => {
+                        handleDownloadZip();
+                        setIsExportMenuOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-subtle flex items-center gap-2 transition-colors text-foreground"
+                    >
+                      <Archive className="w-3.5 h-3.5 text-terracotta" />
+                      <span>Download Project (.zip)</span>
+                    </button>
+                  )}
+
                   {onExportProjectJson && (
                     <button
                       onClick={() => {
@@ -413,13 +489,13 @@ export function PreviewPane({
 
                   <button
                     onClick={() => {
-                      handleOpenNewTab();
+                      handleOpenPresent();
                       setIsExportMenuOpen(false);
                     }}
                     className="w-full text-left px-3 py-2 rounded-xl hover:bg-surface-subtle flex items-center gap-2 transition-colors text-foreground"
                   >
-                    <ExternalLink className="w-3.5 h-3.5 text-foreground-muted" />
-                    <span>Open in Fullscreen</span>
+                    <Maximize2 className="w-3.5 h-3.5 text-terracotta" />
+                    <span>Present in Fullscreen (Live Sync)</span>
                   </button>
                 </div>
               </>
@@ -480,10 +556,13 @@ export function PreviewPane({
                 className="absolute top-0 left-0 shadow-2xl rounded-2xl overflow-hidden border border-border bg-white"
               >
                 <PreviewFrame
-                  key={reloadKey}
+                  key={effectiveReloadKey}
+                  projectId={projectId}
                   html={htmlToDisplay}
+                  reloadKey={effectiveReloadKey}
                   mode={canvasMode}
                   onSelectElement={onSelectElement}
+                  onRuntimeError={onRuntimeError}
                   isLoading={isLoading}
                   theme={theme}
                 />
@@ -492,10 +571,13 @@ export function PreviewPane({
           ) : (
             <div className={`transition-all duration-300 flex items-center justify-center ${viewportWidthClass}`}>
               <PreviewFrame
-                key={reloadKey}
+                key={effectiveReloadKey}
+                projectId={projectId}
                 html={htmlToDisplay}
+                reloadKey={effectiveReloadKey}
                 mode={canvasMode}
                 onSelectElement={onSelectElement}
+                onRuntimeError={onRuntimeError}
                 isLoading={isLoading}
                 theme={theme}
               />
@@ -505,6 +587,9 @@ export function PreviewPane({
           <div className="w-full h-full rounded-xl overflow-hidden border border-border bg-surface">
             <CodeViewer
               code={displayCode}
+              files={workspaceFiles && Object.keys(workspaceFiles).length > 0 ? workspaceFiles : undefined}
+              selectedFile={selectedFile}
+              onSelectFile={setSelectedFile}
               title={`${currentVersion?.title || projectName || "index"}.html`}
             />
           </div>

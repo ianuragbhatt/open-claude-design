@@ -127,6 +127,108 @@ export const IFRAME_BRIDGE_SCRIPT = `
     iconObserver.observe(document.body, { childList: true, subtree: true });
   } catch(e) {}
 
+  // Capture runtime errors and send to parent for agent self-healing
+  window.addEventListener('error', function(e) {
+    window.parent.postMessage({
+      type: 'RUNTIME_ERROR',
+      message: e.message || 'Script error',
+      filename: e.filename || 'unknown',
+      lineno: e.lineno,
+      colno: e.colno
+    }, '*');
+  });
+
+  window.addEventListener('unhandledrejection', function(e) {
+    window.parent.postMessage({
+      type: 'RUNTIME_ERROR',
+      message: (e.reason && e.reason.message) || String(e.reason) || 'Unhandled promise rejection',
+    }, '*');
+  });
+
+  // --- PRESENTATION MODE & LIVE REAL-TIME CROSS-TAB SYNC ---
+  var isPresentMode = (window.top === window.self) || (window.location.search.indexOf('present=1') !== -1);
+  var pathSegments = window.location.pathname.split('/');
+  var wsIdx = pathSegments.indexOf('workspaces');
+  var activeProjId = (wsIdx !== -1 && pathSegments[wsIdx + 1]) ? pathSegments[wsIdx + 1] : '';
+
+  if (isPresentMode) {
+    try {
+      var badge = document.createElement('div');
+      badge.id = 'khayal-present-badge';
+      badge.style.cssText = 'position:fixed;top:14px;right:16px;z-index:999999;display:flex;align-items:center;gap:7px;background:rgba(18,19,25,0.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.14);padding:5px 11px;border-radius:9999px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:11px;color:#f1f5f9;box-shadow:0 6px 20px rgba(0,0,0,0.4);user-select:none;transition:opacity 0.2s ease;opacity:0.85;';
+      badge.innerHTML = '<span style="width:7px;height:7px;border-radius:50%;background:#10b981;display:inline-block;box-shadow:0 0 6px #10b981;"></span><span style="font-weight:600;letter-spacing:0.02em;">Live Synced</span><span style="opacity:0.4;margin:0 1px;">|</span><span style="opacity:0.8;">Presentation</span><button id="khayal-present-reload-btn" title="Reload live preview" style="background:transparent;border:none;color:#94a3b8;cursor:pointer;padding:2px;border-radius:4px;display:flex;align-items:center;margin-left:3px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg></button>';
+      
+      badge.addEventListener('mouseenter', function() { badge.style.opacity = '1'; });
+      badge.addEventListener('mouseleave', function() { badge.style.opacity = '0.85'; });
+
+      document.body.appendChild(badge);
+
+      var reloadBtn = document.getElementById('khayal-present-reload-btn');
+      if (reloadBtn) {
+        reloadBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          window.location.reload();
+        });
+      }
+    } catch(err) {}
+  }
+
+  var reloadDebounceTimer = null;
+  function triggerLiveReload(source) {
+    if (reloadDebounceTimer) clearTimeout(reloadDebounceTimer);
+    
+    if (isPresentMode) {
+      var b = document.getElementById('khayal-present-badge');
+      if (b) {
+        b.innerHTML = '<span style="width:7px;height:7px;border-radius:50%;background:#d97757;display:inline-block;animation:pulse 1s infinite;"></span><span style="font-weight:600;color:#d97757;">Updating live changes...</span>';
+      }
+    }
+
+    reloadDebounceTimer = setTimeout(function() {
+      window.location.reload();
+    }, isPresentMode ? 260 : 80);
+  }
+
+  if (activeProjId) {
+    // 1. Inter-tab BroadcastChannel
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        var bc = new BroadcastChannel('khayal_workspace_' + activeProjId);
+        bc.onmessage = function(ev) {
+          if (ev && ev.data && (ev.data.type === 'RELOAD' || ev.data.type === 'CHANGE')) {
+            triggerLiveReload('broadcast');
+          }
+        };
+      }
+    } catch(e) {}
+
+    // 2. Inter-tab localStorage storage event fallback
+    try {
+      window.addEventListener('storage', function(ev) {
+        if (ev.key === 'khayal_workspace_reload_' + activeProjId) {
+          triggerLiveReload('storage');
+        }
+      });
+    } catch(e) {}
+
+    // 3. SSE live filesystem watcher stream
+    try {
+      if (typeof EventSource !== 'undefined') {
+        var es = new EventSource('/api/workspaces/' + activeProjId + '/live');
+        es.onmessage = function(ev) {
+          if (!ev || !ev.data) return;
+          try {
+            var payload = JSON.parse(ev.data);
+            if (payload.type === 'change') {
+              triggerLiveReload('sse');
+            }
+          } catch(err) {}
+        };
+      }
+    } catch(e) {}
+  }
+
   // Notify parent that bridge is ready
   window.parent.postMessage({ type: 'BRIDGE_READY' }, '*');
 })();

@@ -4,24 +4,36 @@ import React, { useEffect, useRef, useState } from "react";
 import { injectBridgeIntoHtml } from "@/lib/iframe-bridge";
 
 interface PreviewFrameProps {
-  html: string;
+  projectId?: string;
+  html?: string;
+  reloadKey?: number;
   mode: "interact" | "inspect";
-  onSelectElement: (info: { elementName: string; selector: string; textSnippet: string; breadcrumbs?: string }) => void;
+  onSelectElement: (info: {
+    elementName: string;
+    selector: string;
+    textSnippet: string;
+    breadcrumbs?: string;
+    filePath?: string;
+  }) => void;
+  onRuntimeError?: (error: { message: string; filename?: string; lineno?: number }) => void;
   isLoading?: boolean;
   theme?: "dark" | "light";
 }
 
 export function PreviewFrame({
+  projectId,
   html,
+  reloadKey = 0,
   mode,
   onSelectElement,
+  onRuntimeError,
   isLoading,
   theme,
 }: PreviewFrameProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [bridgeReady, setBridgeReady] = useState(false);
 
-  // Injected HTML
+  // Injected HTML fallback (if explicit HTML string is provided)
   const preparedHtml = React.useMemo(() => {
     if (!html) return "";
     return injectBridgeIntoHtml(html);
@@ -44,13 +56,20 @@ export function PreviewFrame({
           selector: event.data.selector,
           textSnippet: event.data.textSnippet,
           breadcrumbs: event.data.breadcrumbs,
+          filePath: event.data.filePath || "index.html",
+        });
+      } else if (event.data.type === "RUNTIME_ERROR") {
+        onRuntimeError?.({
+          message: event.data.message,
+          filename: event.data.filename,
+          lineno: event.data.lineno,
         });
       }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [mode, theme, onSelectElement]);
+  }, [mode, theme, onSelectElement, onRuntimeError]);
 
   // Sync mode changes to iframe
   useEffect(() => {
@@ -66,16 +85,16 @@ export function PreviewFrame({
     }
   }, [theme, bridgeReady]);
 
-  if (!html && isLoading) {
+  if (!html && !projectId && isLoading) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center text-foreground-muted bg-surface">
         <div className="w-8 h-8 rounded-full border-2 border-terracotta/20 border-t-terracotta animate-spin mb-3" />
-        <p className="text-xs font-medium">Generating prototype...</p>
+        <p className="text-xs font-medium">Assembling workspace prototype...</p>
       </div>
     );
   }
 
-  if (!html) {
+  if (!html && !projectId) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center text-foreground-muted bg-surface p-6 text-center">
         <div className="w-12 h-12 rounded-2xl bg-surface-subtle border border-border flex items-center justify-center mb-3">
@@ -89,11 +108,16 @@ export function PreviewFrame({
     );
   }
 
+  // If projectId is provided, load the live workspace route with cache busting
+  const iframeSrc = projectId ? `/api/workspaces/${projectId}/index.html?v=${reloadKey}` : undefined;
+
   return (
     <div className="w-full h-full relative bg-white overflow-hidden">
       <iframe
         ref={iframeRef}
-        srcDoc={preparedHtml}
+        key={projectId ? `${projectId}-${reloadKey}` : undefined}
+        src={iframeSrc}
+        srcDoc={!projectId ? preparedHtml : undefined}
         title="Prototype Preview"
         sandbox="allow-scripts allow-modals allow-same-origin allow-forms"
         className="w-full h-full border-none"

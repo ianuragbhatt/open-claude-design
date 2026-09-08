@@ -7,12 +7,12 @@ import { SettingsModal } from "@/components/SettingsModal";
 import { HomeView } from "@/components/HomeView";
 import { DesignSystemView } from "@/components/DesignSystemView";
 import { getDesignSystem } from "@/lib/design-systems";
-import { parseStreamContent } from "@/lib/parser";
 import {
   type Project,
   type Message,
   type ArtifactVersion,
   type ApiSettings,
+  type ToolInvocation,
   loadSettings,
   saveSettings,
   loadProjects,
@@ -20,9 +20,11 @@ import {
   getActiveProjectId,
   setActiveProjectId,
   createInitialDemoProject,
+  createBudgetDemoProject,
   createNewProject,
   DEFAULT_SETTINGS,
 } from "@/lib/storage";
+import { broadcastWorkspaceReload } from "@/lib/workspace-sync";
 
 export default function KhayalApp() {
   const [currentView, setCurrentView] = useState<"home" | "studio" | "design-system">("home");
@@ -33,12 +35,16 @@ export default function KhayalApp() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [streamingHtml, setStreamingHtml] = useState<string>("");
+  const [reloadKey, setReloadKey] = useState(0);
+  const lastErrorRef = useRef<string>("");
   const [selectedElement, setSelectedElement] = useState<{
     elementName: string;
     selector: string;
     textSnippet: string;
     breadcrumbs?: string;
   } | null>(null);
+  const [activeClientReview, setActiveClientReview] = useState<any | null>(null);
+  const [isClientReviewing, setIsClientReviewing] = useState<boolean>(false);
 
   const [chatWidth, setChatWidth] = useState<number>(() => {
     if (typeof window !== "undefined") {
@@ -88,17 +94,24 @@ export default function KhayalApp() {
     setSettings(loadedSettings);
 
     const storedProjects = loadProjects();
-    const activeId = getActiveProjectId();
-    let current = storedProjects.find((p) => p.id === activeId);
-
-    if (!current) {
-      current = createInitialDemoProject();
-      storedProjects.unshift(current);
+    if (!storedProjects.some((p) => p.id === "budget-smart")) {
+      storedProjects.unshift(createBudgetDemoProject());
       saveProjects(storedProjects);
-      setActiveProjectId(current.id);
     }
+    if (!storedProjects.some((p) => p.id === "proj_demo_anthropic")) {
+      storedProjects.push(createInitialDemoProject());
+      saveProjects(storedProjects);
+    }
+
+    const activeId = getActiveProjectId() || "budget-smart";
+    let current = storedProjects.find((p) => p.id === activeId) || storedProjects[0];
+
+    setActiveProjectId(current.id);
     setAllProjects(storedProjects);
     setProject(current);
+    if (current?.clientReview) {
+      setActiveClientReview(current.clientReview);
+    }
     if (current.versions.length > 0 && current.activeVersionIndex >= 0) {
       setStreamingHtml(current.versions[current.activeVersionIndex].html);
     }
@@ -127,8 +140,11 @@ export default function KhayalApp() {
     saveProjects(updatedList);
     setActiveProjectId(newProj.id);
     setProject(newProj);
+    setActiveClientReview(null);
+    setIsClientReviewing(false);
     setStreamingHtml("");
     setSelectedElement(null);
+    setReloadKey((prev) => prev + 1);
   };
 
   const handleSelectProject = (projectId: string) => {
@@ -136,12 +152,15 @@ export default function KhayalApp() {
     if (found) {
       setActiveProjectId(found.id);
       setProject(found);
+      setActiveClientReview(found.clientReview || null);
+      setIsClientReviewing(false);
       if (found.versions.length > 0 && found.activeVersionIndex >= 0) {
         setStreamingHtml(found.versions[found.activeVersionIndex].html);
       } else {
         setStreamingHtml("");
       }
       setSelectedElement(null);
+      setReloadKey((prev) => prev + 1);
     }
   };
 
@@ -184,6 +203,16 @@ export default function KhayalApp() {
     }
   };
 
+  const handleRuntimeError = (err: { message: string; filename?: string; lineno?: number }) => {
+    if (isLoading) return;
+    const errSig = `${err.message}_${err.lineno}`;
+    if (lastErrorRef.current === errSig) return;
+    lastErrorRef.current = errSig;
+
+    const autoFixPrompt = `Runtime error detected in preview canvas: "${err.message}"${err.filename ? ` in ${err.filename}` : ""}${err.lineno ? ` (line ${err.lineno})` : ""}. Please inspect and use edit_file or write_file to fix this issue immediately.`;
+    handleSendMessage(autoFixPrompt);
+  };
+
   const handleSendMessage = async (content: string, targetProject?: Project) => {
     const currentActiveProject = targetProject || project;
     if (!currentActiveProject || isLoading) return;
@@ -206,10 +235,15 @@ export default function KhayalApp() {
     setSelectedElement(null);
 
     setIsLoading(true);
+    setIsClientReviewing(false);
+    setActiveClientReview(null);
+    let receivedClientReview: any = null;
     abortControllerRef.current = new AbortController();
 
     const assistantMessageId = "msg_" + Math.random().toString(36).slice(2, 9);
-    let fullStreamText = "";
+    let accumulatedText = "";
+    let accumulatedThinking = "";
+    const invocations: ToolInvocation[] = [];
 
     try {
       const response = await fetch("/api/chat", {
@@ -217,6 +251,7 @@ export default function KhayalApp() {
         headers: { "Content-Type": "application/json" },
         signal: abortControllerRef.current.signal,
         body: JSON.stringify({
+          projectId: currentActiveProject.id,
           messages: updatedMessages,
           brandId: currentActiveProject.brandId,
           customBrand: currentActiveProject.customBrand,
@@ -237,19 +272,89 @@ export default function KhayalApp() {
       if (!reader) throw new Error("No response body available");
 
       const decoder = new TextDecoder();
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        fullStreamText += chunk;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
 
-        const parsed = parseStreamContent(fullStreamText);
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data:")) continue;
+          const jsonStr = trimmed.slice(5).trim();
+          if (!jsonStr) continue;
 
-        // Only update preview if artifact is complete or significantly structured
-        if (parsed.artifact?.isComplete) {
-          setStreamingHtml(parsed.artifact.html);
+          try {
+            const event = JSON.parse(jsonStr);
+
+            if (event.type === "client_review") {
+              receivedClientReview = event.review;
+              setActiveClientReview(event.review);
+              setIsClientReviewing(false);
+            } else if (event.type === "client_review_started") {
+              setIsClientReviewing(true);
+            } else if (event.type === "specialist_dispatched") {
+              if (event.specialist === "reviewer") {
+                setIsClientReviewing(true);
+              }
+            } else if (event.type === "text") {
+              accumulatedText += event.text;
+            } else if (event.type === "thinking") {
+              accumulatedThinking += event.text;
+            } else if (event.type === "tool_call") {
+              const existingIdx = invocations.findIndex((inv) => inv.toolCallId === event.toolCallId);
+              if (existingIdx !== -1) {
+                invocations[existingIdx] = {
+                  ...invocations[existingIdx],
+                  state: "call",
+                  args: event.args,
+                  specialist: event.specialist,
+                };
+              } else {
+                invocations.push({
+                  toolCallId: event.toolCallId,
+                  toolName: event.toolName,
+                  args: event.args,
+                  state: "call",
+                  specialist: event.specialist,
+                });
+              }
+            } else if (event.type === "tool_result") {
+              const existingIdx = invocations.findIndex((inv) => inv.toolCallId === event.toolCallId);
+              if (existingIdx !== -1) {
+                invocations[existingIdx] = {
+                  ...invocations[existingIdx],
+                  state: "result",
+                  result: event.result,
+                  specialist: event.specialist,
+                };
+              } else {
+                invocations.push({
+                  toolCallId: event.toolCallId,
+                  toolName: event.toolName,
+                  state: "result",
+                  result: event.result,
+                  specialist: event.specialist,
+                });
+              }
+
+              // Live hot-reload the canvas iframe and cross-tab presentation windows on each write or edit
+              if (event.toolName === "write_file" || event.toolName === "edit_file") {
+                setReloadKey((prev) => prev + 1);
+                broadcastWorkspaceReload(currentActiveProject.id);
+              }
+            } else if (event.type === "error") {
+              throw new Error(event.error);
+            }
+          } catch (e: any) {
+            if (e.message && !e.message.includes("JSON")) {
+              throw e;
+            }
+          }
         }
 
         // Live update assistant message in chat
@@ -263,9 +368,9 @@ export default function KhayalApp() {
               {
                 id: assistantMessageId,
                 role: "assistant",
-                content: parsed.text,
-                thinking: parsed.thinking,
-                questionForm: parsed.questionForm,
+                content: accumulatedText,
+                thinking: accumulatedThinking,
+                toolInvocations: [...invocations],
                 timestamp: Date.now(),
               },
             ],
@@ -273,33 +378,44 @@ export default function KhayalApp() {
         });
       }
 
-      // Stream completed: finalize artifact snapshot
-      const finalParsed = parseStreamContent(fullStreamText);
+      // Stream completed: fetch latest index.html for artifact snapshots and code viewer
+      let latestHtml = "";
+      try {
+        const res = await fetch(`/api/workspaces/${currentActiveProject.id}/index.html?v=${Date.now()}`);
+        if (res.ok) {
+          latestHtml = await res.text();
+        }
+      } catch {}
+
+      if (latestHtml) {
+        setStreamingHtml(latestHtml);
+        broadcastWorkspaceReload(currentActiveProject.id);
+      }
+
       const finalAssistantMsg: Message = {
         id: assistantMessageId,
         role: "assistant",
-        content: finalParsed.text || (finalParsed.artifact ? `Generated "${finalParsed.artifact.title}"` : ""),
-        thinking: finalParsed.thinking,
-        questionForm: finalParsed.questionForm,
+        content: accumulatedText || "Design prototype assembled successfully.",
+        thinking: accumulatedThinking,
+        toolInvocations: [...invocations],
         timestamp: Date.now(),
       };
 
-      let newVersions = [...currentActiveProject.versions];
+      const newVersions = [...currentActiveProject.versions];
       let newActiveIndex = currentActiveProject.activeVersionIndex;
 
-      if (finalParsed.artifact?.html) {
+      if (latestHtml) {
         const newVersionNumber = newVersions.length + 1;
         const newVer: ArtifactVersion = {
           id: "ver_" + Math.random().toString(36).slice(2, 9),
           versionNumber: newVersionNumber,
-          title: finalParsed.artifact.title || `Iteration ${newVersionNumber}`,
-          html: finalParsed.artifact.html,
+          title: `Iteration ${newVersionNumber}`,
+          html: latestHtml,
           timestamp: Date.now(),
           promptSummary: content.slice(0, 60),
         };
         newVersions.push(newVer);
         newActiveIndex = newVersions.length - 1;
-        setStreamingHtml(finalParsed.artifact.html);
       }
 
       const finalizedProject: Project = {
@@ -307,50 +423,38 @@ export default function KhayalApp() {
         messages: [...currentActiveProject.messages, userMessage, finalAssistantMsg],
         versions: newVersions,
         activeVersionIndex: newActiveIndex,
+        clientReview: receivedClientReview || activeClientReview || currentActiveProject.clientReview,
         updatedAt: Date.now(),
       };
 
       updateProject(finalizedProject);
+      setReloadKey((prev) => prev + 1);
     } catch (err: any) {
       if (err.name === "AbortError") {
-        const partialParsed = parseStreamContent(fullStreamText);
-        let partialVersions = [...currentActiveProject.versions];
-        let partialActiveIndex = currentActiveProject.activeVersionIndex;
-
-        if (partialParsed.artifact?.html) {
-          const newVersionNumber = partialVersions.length + 1;
-          partialVersions.push({
-            id: "ver_" + Math.random().toString(36).slice(2, 9),
-            versionNumber: newVersionNumber,
-            title: `${partialParsed.artifact.title || "Draft"} (Partial)`,
-            html: partialParsed.artifact.html,
-            timestamp: Date.now(),
-            promptSummary: content.slice(0, 60),
-          });
-          partialActiveIndex = partialVersions.length - 1;
-          setStreamingHtml(partialParsed.artifact.html);
-        }
-
         const stoppedMsg: Message = {
           id: assistantMessageId,
           role: "assistant",
-          content: partialParsed.text ? `${partialParsed.text} [Stopped]` : "Generation stopped.",
-          thinking: partialParsed.thinking,
+          content: accumulatedText ? `${accumulatedText} [Stopped]` : "Generation stopped.",
+          thinking: accumulatedThinking,
+          toolInvocations: [...invocations],
           timestamp: Date.now(),
         };
 
         updateProject({
           ...currentActiveProject,
           messages: [...currentActiveProject.messages, userMessage, stoppedMsg],
-          versions: partialVersions,
-          activeVersionIndex: partialActiveIndex,
           updatedAt: Date.now(),
         });
         return;
       }
       let friendlyError = err?.message || "Failed to generate design.";
-      if (friendlyError.includes("401") || friendlyError.includes("Unauthorized") || friendlyError.includes("API key")) {
-        friendlyError = "API key required or invalid. Please enter your provider key in Settings to start designing.";
+      if (
+        friendlyError.includes("401") ||
+        friendlyError.includes("Unauthorized") ||
+        friendlyError.includes("API key")
+      ) {
+        friendlyError =
+          "API key required or invalid. Please enter your provider key in Settings to start designing.";
         setIsSettingsOpen(true);
       }
 
@@ -368,6 +472,7 @@ export default function KhayalApp() {
       });
     } finally {
       setIsLoading(false);
+      setIsClientReviewing(false);
       abortControllerRef.current = null;
     }
   };
@@ -543,6 +648,8 @@ export default function KhayalApp() {
                 onOpenSettings={() => setIsSettingsOpen(true)}
                 onOpenDesignSystem={handleOpenDesignSystem}
                 width={chatWidth}
+                clientReview={activeClientReview || project.clientReview}
+                isClientReviewing={isClientReviewing}
               />
             </div>
 
@@ -564,6 +671,7 @@ export default function KhayalApp() {
               } md:flex`}
             >
               <PreviewPane
+                projectId={project.id}
                 projectName={project.name}
                 currentHtml={streamingHtml}
                 streamingCode={streamingHtml}
@@ -574,6 +682,8 @@ export default function KhayalApp() {
                   setSelectedElement(info);
                   setMobileStudioTab("chat");
                 }}
+                onRuntimeError={handleRuntimeError}
+                externalReloadKey={reloadKey}
                 isLoading={isLoading}
                 theme={settings.theme}
                 onToggleTheme={handleToggleTheme}
