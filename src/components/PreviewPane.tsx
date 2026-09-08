@@ -369,7 +369,10 @@ export function PreviewPane({
           {/* Interact vs Click to Edit */}
           <div className="flex items-center p-0.5 bg-surface-subtle/80 rounded-xl border border-border/60">
             <button
-              onClick={() => setCanvasMode("interact")}
+              onClick={() => {
+                setCanvasMode("interact");
+                if (activeTab === "code") setActiveTab("preview");
+              }}
               className={`flex items-center gap-1.5 h-6.5 px-2.5 rounded-lg text-xs font-medium transition-colors ${
                 canvasMode === "interact" ? "bg-surface text-foreground shadow-2xs" : "text-foreground-muted hover:text-foreground"
               }`}
@@ -379,7 +382,10 @@ export function PreviewPane({
               <span>Interact</span>
             </button>
             <button
-              onClick={() => setCanvasMode("inspect")}
+              onClick={() => {
+                setCanvasMode("inspect");
+                if (activeTab === "code") setActiveTab("preview");
+              }}
               className={`flex items-center gap-1.5 h-6.5 px-2.5 rounded-lg text-xs font-medium transition-colors ${
                 canvasMode === "inspect" ? "bg-terracotta text-white shadow-2xs" : "text-foreground-muted hover:text-foreground"
               }`}
@@ -407,16 +413,16 @@ export function PreviewPane({
             <span className="hidden sm:inline">Code</span>
           </button>
 
-          {/* Dedicated Fullscreen Presentation Button */}
+          {/* Dedicated Fullscreen Presentation Button (Prominently Highlighted) */}
           <button
             onClick={handleOpenPresent}
-            disabled={!htmlToDisplay}
-            className="h-7 px-3 rounded-lg bg-surface-subtle/80 hover:bg-surface border border-border/80 hover:border-terracotta/40 text-foreground font-medium text-xs flex items-center gap-1.5 transition-all shadow-2xs group cursor-pointer disabled:opacity-40"
+            disabled={!projectId && !htmlToDisplay}
+            className="h-7 px-3 rounded-lg bg-terracotta/15 hover:bg-terracotta text-terracotta hover:text-white border border-terracotta/40 font-medium text-xs flex items-center gap-1.5 transition-all shadow-xs group cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
             title="Present in fullscreen new tab with real-time live sync"
           >
-            <Maximize2 className="w-3.5 h-3.5 text-terracotta group-hover:scale-110 transition-transform" />
-            <span>Present</span>
-            <ExternalLink className="w-2.5 h-2.5 text-foreground-muted opacity-70 group-hover:opacity-100" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <span className="font-semibold">Present</span>
+            <ExternalLink className="w-2.5 h-2.5 opacity-80 group-hover:opacity-100 shrink-0" />
           </button>
 
           {/* Prominent Export Pill */}

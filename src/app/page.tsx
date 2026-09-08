@@ -27,7 +27,7 @@ import {
 import { broadcastWorkspaceReload } from "@/lib/workspace-sync";
 
 export default function KhayalApp() {
-  const [currentView, setCurrentView] = useState<"home" | "studio" | "design-system">("home");
+  const [currentView, setCurrentView] = useState<"home" | "studio" | "design-system">("studio");
   const [activeDesignSystemId, setActiveDesignSystemId] = useState<string>("modernist");
   const [allProjects, setAllProjects] = useState<Project[]>([]);
   const [project, setProject] = useState<Project | null>(null);
@@ -113,7 +113,17 @@ export default function KhayalApp() {
       setActiveClientReview(current.clientReview);
     }
     if (current.versions.length > 0 && current.activeVersionIndex >= 0) {
-      setStreamingHtml(current.versions[current.activeVersionIndex].html);
+      const verHtml = current.versions[current.activeVersionIndex].html;
+      if (verHtml) {
+        setStreamingHtml(verHtml);
+      } else {
+        fetch(`/api/workspaces/${current.id}/index.html?v=${Date.now()}`)
+          .then((res) => (res.ok ? res.text() : ""))
+          .then((html) => {
+            if (html) setStreamingHtml(html);
+          })
+          .catch(() => {});
+      }
     }
   }, []);
 
@@ -155,7 +165,17 @@ export default function KhayalApp() {
       setActiveClientReview(found.clientReview || null);
       setIsClientReviewing(false);
       if (found.versions.length > 0 && found.activeVersionIndex >= 0) {
-        setStreamingHtml(found.versions[found.activeVersionIndex].html);
+        const verHtml = found.versions[found.activeVersionIndex].html;
+        if (verHtml) {
+          setStreamingHtml(verHtml);
+        } else {
+          fetch(`/api/workspaces/${found.id}/index.html?v=${Date.now()}`)
+            .then((res) => (res.ok ? res.text() : ""))
+            .then((html) => {
+              if (html) setStreamingHtml(html);
+            })
+            .catch(() => {});
+        }
       } else {
         setStreamingHtml("");
       }
