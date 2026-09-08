@@ -50,6 +50,8 @@ interface SettingsModalProps {
 }
 
 const COMMON_URL_SUGGESTIONS = [
+  { label: "Capgemini GenAI", url: "https://openai.generative.engine.capgemini.com/v1", defaultModel: "anthropic.claude-opus-4-8" },
+  { label: "Anthropic Claude (Direct)", url: "https://api.anthropic.com/v1", defaultModel: "claude-3-7-sonnet-20250219" },
   { label: "OpenRouter", url: "https://openrouter.ai/api/v1", defaultModel: "anthropic/claude-3.7-sonnet" },
   { label: "OpenAI", url: "https://api.openai.com/v1", defaultModel: "gpt-4o" },
   { label: "Local Ollama", url: "http://localhost:11434/v1", defaultModel: "llama3.3" },
@@ -597,6 +599,8 @@ export function SettingsModal({
                         setSettings((prev) => ({
                           ...prev,
                           baseUrl: item.url,
+                          selectedModel: item.defaultModel || prev.selectedModel,
+                          availableModels: Array.from(new Set([item.defaultModel, ...(prev.availableModels || [])])),
                         }));
                       }}
                       className="px-2 py-0.5 rounded-md bg-surface border border-border hover:border-terracotta/40 text-[10px] text-foreground-muted hover:text-foreground transition-colors focus:outline-none"

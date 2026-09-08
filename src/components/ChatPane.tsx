@@ -17,13 +17,26 @@ import {
   Wand2,
   ArrowUpRight,
   Brain,
+  FileCode,
+  FileText,
+  FolderTree,
+  Trash2,
+  Terminal,
 } from "lucide-react";
 import { QuestionFormView } from "./QuestionFormView";
 import { ModelPickerPopover } from "./ModelPickerPopover";
 import { getAllDesignSystems, type DesignSystem } from "@/lib/design-systems";
-import { type Message, type ApiSettings, type Project, getModelDisplayName, isFictionalOrLegacyModel } from "@/lib/storage";
+import {
+  type Message,
+  type ToolInvocation,
+  type ApiSettings,
+  type Project,
+  getModelDisplayName,
+  isFictionalOrLegacyModel,
+} from "@/lib/storage";
 import { formatModelName, formatElementName } from "@/lib/formatters";
 import { KhayalLogo } from "@/components/KhayalLogo";
+import { LaptopReviewAnimation } from "./LaptopReviewAnimation";
 
 interface ChatPaneProps {
   project: Project;
@@ -47,6 +60,8 @@ interface ChatPaneProps {
   onOpenSettings: () => void;
   onOpenDesignSystem?: (brandId: string) => void;
   width?: number;
+  clientReview?: any;
+  isClientReviewing?: boolean;
 }
 
 const STARTER_PROMPTS = [
@@ -107,6 +122,98 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
   );
 }
 
+function ToolInvocationsList({
+  invocations,
+  isStreaming,
+}: {
+  invocations: ToolInvocation[];
+  isStreaming?: boolean;
+}) {
+  if (!invocations || invocations.length === 0) return null;
+
+  return (
+    <div className="space-y-1.5 my-2">
+      {invocations.map((inv) => {
+        const isRunning = inv.state === "call";
+        const path = inv.args?.path || inv.args?.filename || "";
+
+        let label = "";
+        let icon = null;
+
+        switch (inv.toolName) {
+          case "delegate_to_designer":
+            label = isRunning ? "🎨 Markup Designer drafting layout..." : "🎨 UI Designer created semantic HTML";
+            icon = <Sparkles className="w-3.5 h-3.5 text-purple-400 shrink-0" />;
+            break;
+          case "delegate_to_stylist":
+            label = isRunning ? "💅 Style Specialist crafting design tokens..." : "💅 Stylist applied brand tokens & CSS";
+            icon = <Palette className="w-3.5 h-3.5 text-pink-400 shrink-0" />;
+            break;
+          case "delegate_to_engineer":
+            label = isRunning ? "⚡ Logic Engineer writing state & charts..." : "⚡ Engineer wired interactive JS & state";
+            icon = <Play className="w-3.5 h-3.5 text-amber-400 shrink-0" />;
+            break;
+          case "delegate_to_reviewer":
+            label = isRunning ? "🔍 Quality Reviewer inspecting codebase..." : "🔍 Reviewer validated quality & verified IDs";
+            icon = <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />;
+            break;
+          case "inspect_workspace":
+            label = isRunning ? "🏛️ Creative Director evaluating workspace..." : "🏛️ Director evaluated workspace files";
+            icon = <FolderTree className="w-3.5 h-3.5 text-cyan-400 shrink-0" />;
+            break;
+          case "write_file":
+            label = isRunning ? `Writing ${path}...` : `Wrote ${path}`;
+            icon = <FileCode className="w-3.5 h-3.5 text-terracotta shrink-0" />;
+            break;
+          case "edit_file":
+            label = isRunning ? `Editing ${path}...` : `Updated ${path}`;
+            icon = <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />;
+            break;
+          case "read_file":
+            label = isRunning ? `Reading ${path}...` : `Read ${path}`;
+            icon = <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0" />;
+            break;
+          case "list_files":
+            label = isRunning ? "Listing workspace files..." : "Explored workspace files";
+            icon = <FolderTree className="w-3.5 h-3.5 text-violet-400 shrink-0" />;
+            break;
+          case "delete_file":
+            label = isRunning ? `Deleting ${path}...` : `Deleted ${path}`;
+            icon = <Trash2 className="w-3.5 h-3.5 text-red-400 shrink-0" />;
+            break;
+          case "fetch_asset":
+            label = isRunning ? `Fetching ${path}...` : `Fetched asset ${path}`;
+            icon = <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />;
+            break;
+          default:
+            label = `${inv.toolName}${path ? `: ${path}` : ""}`;
+            icon = <Terminal className="w-3.5 h-3.5 text-foreground-muted shrink-0" />;
+        }
+
+        return (
+          <div
+            key={inv.toolCallId}
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-surface border border-border/80 text-[11px] font-mono shadow-2xs transition-all"
+          >
+            {icon}
+            <span className="text-foreground font-medium truncate">{label}</span>
+            {inv.specialist && (
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-surface-subtle text-foreground-muted uppercase font-semibold">
+                {inv.specialist}
+              </span>
+            )}
+            {isRunning ? (
+              <span className="w-2 h-2 rounded-full bg-terracotta animate-ping ml-auto shrink-0" />
+            ) : (
+              <Check className="w-3 h-3 text-emerald-500 ml-auto shrink-0" />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function ChatPane({
   project,
   allProjects,
@@ -127,8 +234,11 @@ export function ChatPane({
   onOpenSettings,
   onOpenDesignSystem,
   width,
+  clientReview,
+  isClientReviewing,
 }: ChatPaneProps) {
   const [input, setInput] = useState("");
+  const [isReviewDismissed, setIsReviewDismissed] = useState(false);
   const [isModelPickerOpen, setIsModelPickerOpen] = useState(false);
   const [isRefreshingModels, setIsRefreshingModels] = useState(false);
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
@@ -145,7 +255,14 @@ export function ChatPane({
 
   useEffect(() => {
     setEditedTitle(project.name);
-  }, [project.name]);
+    setIsReviewDismissed(false);
+  }, [project.id, project.name]);
+
+  useEffect(() => {
+    if (isClientReviewing) {
+      setIsReviewDismissed(false);
+    }
+  }, [isClientReviewing]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -390,6 +507,13 @@ export function ChatPane({
                     />
                   )}
 
+                  {msg.toolInvocations && msg.toolInvocations.length > 0 && (
+                    <ToolInvocationsList
+                      invocations={msg.toolInvocations}
+                      isStreaming={isLoading && idx === messages.length - 1}
+                    />
+                  )}
+
                   {msg.content && (
                     <div
                       className={`whitespace-pre-wrap font-normal ${
@@ -424,6 +548,16 @@ export function ChatPane({
 
         <div ref={messagesEndRef} />
       </div>
+
+      {/* 3D Animated Laptop Client Review Deck */}
+      {!isReviewDismissed && (isClientReviewing || clientReview) && (
+        <LaptopReviewAnimation
+          isReviewing={!!isClientReviewing}
+          reviewResult={clientReview || null}
+          projectName={project.name}
+          onDismiss={() => setIsReviewDismissed(true)}
+        />
+      )}
 
       {/* Composer Area */}
       <div className="p-3 border-t border-border bg-surface flex flex-col gap-2">

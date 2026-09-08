@@ -1,11 +1,22 @@
 import type { QuestionForm } from "./parser";
 import { DEMO_PROJECT_HTML } from "./demo-starter";
 
+export interface ToolInvocation {
+  toolCallId: string;
+  toolName: string;
+  args?: any;
+  state: "call" | "result";
+  result?: any;
+  specialist?: "supervisor" | "designer" | "stylist" | "engineer" | "reviewer";
+}
+
 export interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   thinking?: string;
+  toolInvocations?: ToolInvocation[];
+  clientReview?: any;
   isError?: boolean;
   questionForm?: QuestionForm | null;
   timestamp: number;
@@ -30,6 +41,7 @@ export interface Project {
   messages: Message[];
   versions: ArtifactVersion[];
   activeVersionIndex: number;
+  clientReview?: any;
 }
 
 export interface ConfiguredModel {
@@ -49,23 +61,23 @@ export interface ApiSettings {
 }
 
 export const DEFAULT_CONFIGURED_MODELS: ConfiguredModel[] = [
-  { id: "anthropic/claude-3.7-sonnet", customName: "Opus 5", description: "For complex tasks" },
-  { id: "anthropic/claude-3.5-sonnet", customName: "Sonnet 5", description: "Most efficient for everyday tasks" },
-  { id: "anthropic/claude-3.5-haiku", customName: "Haiku 4.5", description: "Fastest for quick answers" },
-  { id: "openai/gpt-4o", customName: "GPT-4o", description: "Balanced everyday design" },
+  { id: "anthropic.claude-sonnet-5", customName: "Claude Sonnet 5", description: "Ultra-fast & intelligent interface designer" },
+  { id: "anthropic.claude-opus-5", customName: "Claude Opus 5", description: "Flagship creative architectural design" },
+  { id: "openai.gpt-5.6-terra", customName: "GPT Terra 5.6", description: "Advanced frontier code & UI generation" },
+  { id: "openai.gpt-5.6-sol", customName: "GPT Sol 5.6", description: "High-speed reasoning & precision styling" },
 ];
 
 export const DEFAULT_SETTINGS: ApiSettings = {
-  baseUrl: "https://openrouter.ai/api/v1",
-  apiKey: "",
-  selectedModel: "anthropic/claude-3.7-sonnet",
+  baseUrl: "https://openai.generative.engine.capgemini.com/v1",
+  apiKey: "M9uMcd3fkP1HZgBEU1amb4dXhOpdjvfI5WQuj77x",
+  selectedModel: "anthropic.claude-sonnet-5",
   availableModels: [
-    "anthropic/claude-3.7-sonnet",
-    "anthropic/claude-3.5-sonnet",
-    "anthropic/claude-3.5-haiku",
-    "openai/gpt-4o",
-    "openai/o3-mini",
-    "deepseek/deepseek-r1",
+    "anthropic.claude-sonnet-5",
+    "anthropic.claude-opus-5",
+    "openai.gpt-5.6-terra",
+    "openai.gpt-5.6-sol",
+    "anthropic.claude-opus-4-8",
+    "openai.gpt-4o",
   ],
   configuredModels: DEFAULT_CONFIGURED_MODELS,
   reasoningEffort: "medium",
@@ -81,9 +93,7 @@ export function isFictionalOrLegacyModel(id?: string | null): boolean {
     lower.includes("claude-luna") ||
     lower === "terra" ||
     lower === "sol" ||
-    lower === "luna" ||
-    lower.includes("gpt-5.6") ||
-    lower.includes("gpt-5-")
+    lower === "luna"
   );
 }
 
@@ -289,6 +299,59 @@ export function createInitialDemoProject(): Project {
       }
     ],
     activeVersionIndex: 0,
+  };
+}
+
+export function createBudgetDemoProject(): Project {
+  return {
+    id: "budget-smart",
+    name: "SmartBudget Vault",
+    brandId: "linear",
+    createdAt: Date.now() - 120000,
+    updatedAt: Date.now(),
+    messages: [
+      {
+        id: "msg_user_budget",
+        role: "user",
+        content: "Create a modern, complete, and production-grade Budgeting and Savings web application called 'SmartBudget Vault' using the Linear design system.",
+        timestamp: Date.now() - 120000,
+      },
+      {
+        id: "msg_assistant_budget",
+        role: "assistant",
+        content: "I have built the SmartBudget Vault application using the Linear design system with dark charcoal canvas (#0c0d12), glass surface cards, neon emerald and purple accents, savings vaults with deposit/withdraw actions, monthly category limits with real-time budget warnings, searchable transactions table, dynamic canvas donut & cash-flow charts, and LocalStorage persistence.",
+        timestamp: Date.now() - 60000,
+      }
+    ],
+    versions: [
+      {
+        id: "ver_budget_1",
+        versionNumber: 1,
+        title: "SmartBudget Vault v1.0",
+        html: "",
+        timestamp: Date.now() - 60000,
+        promptSummary: "Complete SmartBudget Vault with Linear design system",
+      }
+    ],
+    activeVersionIndex: 0,
+    clientReview: {
+      score: 91,
+      grade: "A-",
+      headline: "Polished, well-structured budgeting dashboard with strong Linear-system fidelity and solid functional depth",
+      visualPolishVerdict: "The interface honors the Linear design contract with dark charcoal surfaces (#0c0d12), subtle 1px border elevation, vibrant emerald & purple accents, and clean SF Pro typography. Data cards and chart containers are crisply proportioned.",
+      functionalCompletenessVerdict: "Comprehensive feature delivery: interactive savings vault deposit/withdrawal modals with milestone celebration, budget limit tracking with visual threshold badges, live transaction filtering and search, HTML5 canvas donut chart and cash flow bars, and persistent localStorage sync.",
+      recommendation: "Approved for production release",
+      strengths: [
+        "Faithful implementation of Linear tokens and dark mode elevation",
+        "Interactive HTML5 canvas donut and monthly cash flow charts without external dependencies",
+        "Robust reactive state with LocalStorage persistence across page reloads",
+        "Complete accessibility hooks and semantic data-khayal-element annotations",
+      ],
+      polishNotes: [
+        "Consider adding CSV/bank statement import for rapid onboarding",
+        "Add keyboard shortcuts (e.g., CMD+K for search, N for new transaction)",
+      ],
+    },
   };
 }
 
