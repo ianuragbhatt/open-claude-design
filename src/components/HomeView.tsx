@@ -299,9 +299,6 @@ export function HomeView({
           <h1 className="font-editorial text-4xl sm:text-5xl font-medium text-foreground tracking-tight mb-2">
             What should we create today?
           </h1>
-          <p className="text-sm text-foreground-muted max-w-lg mx-auto leading-relaxed font-sans">
-            Describe your interface idea, pick a brand style, and watch your interactive design come alive.
-          </p>
         </div>
 
         {/* Hero Composer Card */}
